@@ -1,0 +1,61 @@
+# ==========================================
+# 1. Secret & Sensitive Data (Bảo mật)
+# ==========================================
+# Chặn các file cấu hình chứa API keys, DB password, OAuth secret...
+**/src/main/resources/application.properties
+**/src/main/resources/application-*.properties
+**/src/main/resources/application-*.yml
+**/src/main/resources/application-*.yaml
+.env
+
+# Cho phép commit file template mẫu (nếu có) để team biết cấu trúc config
+!**/src/main/resources/application.properties.example
+
+# ==========================================
+# 2. Build Output & Compiled Files (File biên dịch)
+# ==========================================
+target/
+build/
+*.class
+*.jar
+*.war
+*.ear
+*.rar
+
+# Maven Wrapper JAR
+.mvn/wrapper/maven-wrapper.jar
+
+# ==========================================
+# 3. IDE & Editor Files (Cấu hình trình soạn thảo)
+# ==========================================
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Eclipse / STS
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+
+# VS Code
+.vscode/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# ==========================================
+# 4. OS / System Files (File rác hệ thống)
+# ==========================================
+.DS_Store
+Thumbs.db
+*.log
