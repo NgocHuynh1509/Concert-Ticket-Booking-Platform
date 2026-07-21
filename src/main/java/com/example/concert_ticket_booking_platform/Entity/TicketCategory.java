@@ -7,11 +7,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.math.BigDecimal;
 
@@ -40,7 +36,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Builder
 public class TicketCategory extends BaseEntity {
-
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "concert_id", nullable = false)
     private Concert concert;
@@ -61,4 +57,5 @@ public class TicketCategory extends BaseEntity {
     @Column(nullable = false)
     private Long version;
 }
+
 

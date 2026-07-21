@@ -44,9 +44,12 @@ public class Concert extends BaseEntity {
     @Column(nullable = false, length = 20)
     private ConcertStatus status;
 
-    // mappedBy vì TicketCategory là chủ sở hữu FK (concert_id nằm bên đó).
-    // cascade PERSIST/MERGE để operator tạo concert kèm category trong 1 request tiện lợi hơn,
-    // nhưng KHÔNG cascade REMOVE — xoá concert không nên tự động xoá category đang có booking.
+    @Column(name = "concert_map_url", length = 500)
+    private String concertMapUrl;
+
+    @Column(name = "poster_url", length = 500)
+    private String posterUrl;
+
     @ToString.Exclude
     @Builder.Default
     @OneToMany(mappedBy = "concert", cascade = {CascadeType.PERSIST, CascadeType.MERGE})

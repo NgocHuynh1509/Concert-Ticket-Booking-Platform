@@ -12,15 +12,24 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import java.util.Collection;
+import java.util.List;
 
 /**
- * ASSUMPTION: không làm auth thật (JWT/OAuth) trong scope test này.
- * User chỉ đủ để gắn chủ sở hữu booking + phân biệt CUSTOMER / OPERATOR / ADMIN
- * cho việc phân quyền API dashboard (nếu có thời gian sẽ thêm Spring Security ở tầng API,
- * còn Entity thì thiết kế sẵn để không phải sửa lại schema sau này).
+ * User implements UserDetails de Spring Security dung truc tiep lam principal,
+ * khong can tao them lop Adapter rieng.
+ *
+ * Phan quyen (authorization): role duoc map thanh GrantedAuthority dang "ROLE_<role>"
+ * (vi du ROLE_CUSTOMER, ROLE_OPERATOR, ROLE_ADMIN) de dung voi @PreAuthorize("hasRole(...)").
  */
 @Getter
 @Setter
+@ToString
 @Entity
 @Table(name = "users", uniqueConstraints = {
         @UniqueConstraint(name = "uk_users_username", columnNames = "username"),
@@ -29,7 +38,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class User extends BaseEntity {
+public class User extends BaseEntity implements UserDetails {
 
     @Column(nullable = false, length = 100)
     private String username;
@@ -43,4 +52,45 @@ public class User extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private UserRole role;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean enabled = true;
+
+    // ---- UserDetails contract ----
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
+    }
+
+    @Override
+    public String getPassword() {
+        return passwordHash;
+    }
+
+    @Override
+    public String getUsername() {
+        return username;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return enabled;
+    }
 }
