@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Concert Detail</title>
+    <!-- css chung -->
+    <link rel="stylesheet" href="/css/styles.css">
+    <!-- css riêng -->
+    <link rel="stylesheet" href="/css/concert-detail.css">
+</head>
+<body>
+<div class="header">
+    <h1>ConcertBooking</h1>
+    <div style="display:flex;align-items:center;gap:15px;">
+        <span id="user-greeting"></span>
+        <button id="logout-btn" class="btn-primary">
+            Đăng xuất
+        </button>
+    </div>
+</div>
+<div class="detail-container">
+    <div class="detail-banner">
+        <img id="poster" class="detail-poster">
+        <div class="detail-info">
+            <h1 id="name"></h1>
+            <p id="description" class="detail-description"></p>
+            <div class="detail-item">
+                <strong>📍 Địa điểm:</strong>
+                <span id="venue"></span>
+            </div>
+            <div class="detail-item">
+                <strong>🗓 Thời gian:</strong>
+                <span id="date"></span>
+            </div>
+            <div class="detail-item">
+                <strong>🎫 Trạng thái:</strong>
+                <span id="status"></span>
+            </div>
+            <div class="detail-item">
+                <a id="map" target="_blank">
+                    Xem sơ đồ concert
+                </a>
+            </div>
+        </div>
+    </div>
+    <h2>Loại vé</h2>
+    <div id="tickets" class="ticket-list"></div>
+</div>
+<script>
+    const token = localStorage.getItem("token");
+    const username = localStorage.getItem("username");
+    const greeting=document.getElementById("user-greeting");
+    const logoutBtn=document.getElementById("logout-btn");
+    if(token){
+        greeting.innerHTML="Hi, "+username;
+        logoutBtn.innerHTML="Đăng xuất";
+        logoutBtn.onclick=()=>{
+            localStorage.removeItem("token");
+            localStorage.removeItem("username");
+            location.href="/login";
+        }
+    }else{
+        logoutBtn.innerHTML="Đăng nhập";
+        logoutBtn.onclick=()=>{
+            location.href="/login";
+        }
+    }
+    const id=window.location.pathname.split("/").pop();
+    loadConcert();
+    async function loadConcert(){
+        try{
+            const headers={};
+            if(token){
+                headers.Authorization="Bearer "+token;
+            }
+            const response = await fetch("/api/concerts/" + id, {
+                method: "GET",
+                headers,
+                cache: "no-store"
+            });
+            if(!response.ok){
+                alert("Không tải được concert");
+                return;
+            }
+            const concert=await response.json();
+            // Poster
+            const poster = document.getElementById("poster");
+
+            if (concert.posterUrl && concert.posterUrl.trim() !== "") {
+                poster.src = concert.posterUrl;
+            } else {
+                // Ảnh mặc định đặt trong src/main/resources/static/images/
+                poster.src = "/images/default-concert.jpg";
+            }
+// Nếu ảnh lỗi thì dùng ảnh mặc định
+            poster.onerror = function () {
+                this.src = "/images/default-concert.jpg";
+            };
+// Link sơ đồ
+            const mapLink = document.getElementById("map");
+            if (concert.concertMapUrl && concert.concertMapUrl.trim() !== "") {
+                mapLink.href = concert.concertMapUrl;
+                mapLink.style.display = "inline";
+            } else {
+                mapLink.style.display = "none";
+            }
+            document.getElementById("name").innerHTML=concert.name;
+            document.getElementById("description").innerHTML=concert.description;
+            document.getElementById("venue").innerHTML=concert.venue;
+            document.getElementById("status").innerHTML=concert.status;
+            document.getElementById("date").innerHTML=
+                new Date(concert.eventDate).toLocaleString("vi-VN");
+
+            const ticketDiv=document.getElementById("tickets");
+            ticketDiv.innerHTML="";
+            concert.tickets.forEach(ticket=>{
+                ticketDiv.innerHTML+=`
+            <div class="glass-panel ticket-card">
+                <div class="ticket-left">
+                    <h3>${ticket.name}</h3>
+                    <p>💰 ${Number(ticket.price).toLocaleString("vi-VN")} VNĐ</p>
+                    <p>🎟 Còn ${ticket.availableQuantity} vé</p>
+                </div>
+                <button
+                    class="btn-primary book-btn"
+                    onclick="book(${ticket.id})">
+                    Đặt vé
+                </button>
+            </div>
+            `;
+            });
+        }
+        catch(e){
+            console.log(e);
+            alert("Lỗi kết nối máy chủ.");
+        }
+    }
+    function book(ticketId){
+        if(!token){
+            location.href="/login";
+            return;
+        }
+        alert("Đặt vé loại: "+ticketId);
+        // Sau này chuyển sang checkout
+    }
+
+</script>
+
+</body>
+</html>

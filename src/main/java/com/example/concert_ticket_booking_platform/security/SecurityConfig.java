@@ -47,8 +47,8 @@ public class SecurityConfig {
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService); // Truyền trực tiếp vào constructor
-        provider.setPasswordEncoder(passwordEncoder()); // Giữ nguyên dòng mã hóa password của bạn
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
         return provider;
     }
 
@@ -67,8 +67,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Static frontend + h2-console: cong khai
                         .requestMatchers(
-                                "/", "/*.html", "/css/**", "/js/**", "/assets/**", "/favicon.ico",
-                                "/h2-console/**"
+                                "/", "/home", "/login", "/register", "/*.html", "/css/**", "/js/**", "/assets/**", "/favicon.ico",
+                                "/h2-console/**","/concert/**"
                         ).permitAll()
                         // Auth endpoints: cong khai (chua co token thi lam sao dang nhap duoc)
                         .requestMatchers("/api/auth/**").permitAll()

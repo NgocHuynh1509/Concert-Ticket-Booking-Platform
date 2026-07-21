@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập - Concert Booking</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+<div class="login-container">
+    <div class="glass-panel login-card">
+        <h2>Welcome Back</h2>
+        <div id="error-message" class="error-message"></div>
+        <form id="login-form">
+            <div class="input-group">
+                <label for="username">Tên đăng nhập</label>
+                <input type="text" id="username" name="username" required placeholder="Nhập username...">
+            </div>
+            <div class="input-group">
+                <label for="password">Mật khẩu</label>
+                <input type="password" id="password" name="password" required placeholder="Nhập mật khẩu...">
+            </div>
+            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Đăng nhập</button>
+        </form>
+        <p style="margin-top: 20px; font-size: 0.9rem; color: var(--text-secondary);">
+            Chưa có tài khoản? <a href="/register" style="color: var(--accent-color); font-weight: bold; text-decoration: none;">Đăng ký ngay</a>
+        </p>
+    </div>
+</div>
+
+<script>
+    document.getElementById('login-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const errorDiv = document.getElementById('error-message');
+
+        errorDiv.style.display = 'none';
+
+        try {
+            const response = await fetch('api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('username', data.username);
+                window.location.href = '/home';
+            } else {
+                errorDiv.textContent = 'Sai tên đăng nhập hoặc mật khẩu';
+                errorDiv.style.display = 'block';
+            }
+        } catch (error) {
+            errorDiv.textContent = 'Lỗi kết nối máy chủ';
+            errorDiv.style.display = 'block';
+        }
+    });
+</script>
+
+</body>
+</html>

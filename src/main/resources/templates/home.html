@@ -2,9 +2,141 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home - Concert Tickets</title>
+    <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
+
+<div class="header">
+    <h1>ConcertBooking</h1>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <span id="user-greeting" style="font-weight: 600; color: var(--text-primary);"></span>
+        <button id="logout-btn" class="btn-primary" style="padding: 8px 16px; font-size: 0.9rem;">Đăng xuất</button>
+    </div>
+</div>
+
+<div class="home-container">
+    <h2 style="color: var(--text-primary); margin-bottom: 10px;">Upcoming Concerts</h2>
+    <p style="color: var(--text-secondary);">Khám phá những sự kiện âm nhạc tuyệt vời nhất.</p>
+
+    <div id="concert-grid" class="concert-grid">
+        <!-- Concert Cards will be injected here by JS -->
+    </div>
+</div>
+
+<script>
+    // Authentication Check
+    const token = localStorage.getItem('token');
+    const username = localStorage.getItem('username');
+    const authBtn = document.getElementById('logout-btn');
+
+    if (!token) {
+        // Guest mode
+        document.getElementById('user-greeting').textContent = '';
+        authBtn.textContent = 'Đăng nhập';
+        authBtn.addEventListener('click', () => {
+            window.location.href = '/login';
+        });
+    } else {
+        // Logged in mode
+        document.getElementById('user-greeting').textContent = `Hi, ${username}`;
+        authBtn.textContent = 'Đăng xuất';
+        authBtn.addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            window.location.href = '/login';
+        });
+    }
+
+    // Luôn tải danh sách concert dù có đăng nhập hay không
+    loadConcerts();
+
+    // Fetch Concerts
+    async function loadConcerts() {
+        const grid = document.getElementById('concert-grid');
+
+        try {
+            const headers = {};
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch('/api/concerts', {
+                headers: headers
+            });
+
+            if (response.ok) {
+                const concerts = await response.json();
+                renderConcerts(concerts);
+            } else if (response.status === 401 || response.status === 403) {
+                // Token expired or invalid
+                localStorage.removeItem('token');
+                window.location.href = '/login';
+            } else {
+                grid.innerHTML = '<p>Không thể tải danh sách concert.</p>';
+            }
+        } catch (error) {
+            grid.innerHTML = '<p>Lỗi kết nối máy chủ.</p>';
+        }
+    }
+
+    function renderConcerts(concerts) {
+        const grid = document.getElementById('concert-grid');
+        grid.innerHTML = ''; // Clear previous content
+
+        if (concerts.length === 0) {
+            grid.innerHTML = '<p>Hiện chưa có concert nào.</p>';
+            return;
+        }
+
+        concerts.forEach(concert => {
+            const date = new Date(concert.eventDate).toLocaleDateString('vi-VN', {
+                year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+
+            let statusBadge = '';
+            if (concert.status === 'UPCOMING') {
+                statusBadge = '<span class="badge active">Upcoming</span>';
+            } else if (concert.status === 'SOLD_OUT') {
+                statusBadge = '<span class="badge sold_out">Sold Out</span>';
+            } else {
+                statusBadge = `<span class="badge">${concert.status}</span>`;
+            }
+
+            // Using placeholder image if posterUrl is null
+            const imageUrl = concert.posterUrl || 'https://images.unsplash.com/photo-1540039155732-61ee0152b123?q=80&w=600&auto=format&fit=crop';
+
+            const card = document.createElement('div');
+            card.className = 'glass-panel concert-card';
+            card.innerHTML = `
+                <div class="concert-image" style="background-image: url('${imageUrl}')"></div>
+                <div class="concert-info">
+                    <div class="concert-title">${concert.name}</div>
+                    <div class="concert-detail">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>
+                        ${concert.venue}
+                    </div>
+                    <div class="concert-detail">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/></svg>
+                        ${date}
+                    </div>
+                    <div class="concert-status">
+                        ${statusBadge}
+                    </div>
+                </div>
+            `;
+
+            card.style.cursor = "pointer";
+
+            card.addEventListener("click", () => {
+                console.log(concert.id); // kiểm tra
+                window.location.href = `/concert/${concert.id}`;
+            });
+            grid.appendChild(card);
+        });
+    }
+</script>
 
 </body>
 </html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng ký - Concert Booking</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+<div class="login-container">
+    <div class="glass-panel login-card">
+        <h2>Tạo tài khoản mới</h2>
+        <div id="error-message" class="error-message"></div>
+        <form id="register-form">
+            <div class="input-group">
+                <label for="username">Tên đăng nhập</label>
+                <input type="text" id="username" name="username" required placeholder="Nhập username (từ 3-100 ký tự)...">
+            </div>
+            <div class="input-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required placeholder="Nhập địa chỉ email...">
+            </div>
+            <div class="input-group">
+                <label for="password">Mật khẩu</label>
+                <input type="password" id="password" name="password" required placeholder="Nhập mật khẩu (ít nhất 6 ký tự)...">
+            </div>
+            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Đăng ký</button>
+        </form>
+        <p style="margin-top: 20px; font-size: 0.9rem; color: var(--text-secondary);">
+            Đã có tài khoản? <a href="/login" style="color: var(--accent-color); font-weight: bold; text-decoration: none;">Đăng nhập ngay</a>
+        </p>
+    </div>
+</div>
+
+<script>
+    document.getElementById('register-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const username = document.getElementById('username').value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const errorDiv = document.getElementById('error-message');
+        const submitBtn = this.querySelector('button[type="submit"]');
+
+        errorDiv.style.display = 'none';
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Đang xử lý...';
+
+        try {
+            const response = await fetch('api/auth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, email, password })
+            });
+
+            if (response.ok) {
+                // Đăng ký thành công, chuyển về trang login kèm thông báo
+                alert('Đăng ký thành công! Hãy đăng nhập bằng tài khoản vừa tạo.');
+                window.location.href = '/login';
+            } else {
+                // Hiển thị lỗi từ server trả về (nếu có)
+                const text = await response.text();
+                errorDiv.textContent = text || 'Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.';
+                errorDiv.style.display = 'block';
+            }
+        } catch (error) {
+            errorDiv.textContent = 'Lỗi kết nối máy chủ';
+            errorDiv.style.display = 'block';
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Đăng ký';
+        }
+    });
+</script>
+
+</body>
+</html>
