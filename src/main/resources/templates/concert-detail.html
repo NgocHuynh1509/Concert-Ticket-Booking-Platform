@@ -136,13 +136,16 @@
             alert("Lỗi kết nối máy chủ.");
         }
     }
-    function book(ticketId){
-        if(!token){
-            location.href="/login";
+    function book(ticketId) {
+        if (!token) {
+            // Lưu lại trang để sau khi login xong quay lại
+            localStorage.setItem("redirect_after_login", window.location.pathname);
+            location.href = "/login";
             return;
         }
-        alert("Đặt vé loại: "+ticketId);
-        // Sau này chuyển sang checkout
+        // Lưu ticketId được chọn để checkout.html sử dụng
+        sessionStorage.setItem("checkout_ticket_id", ticketId);
+        location.href = "/checkout";
     }
 
 </script>

@@ -25,4 +25,14 @@ public class WebController {
     public String concertDetail(){
         return "concert-detail";
     }
+
+    @GetMapping("/checkout")
+    public String checkoutPage() {
+        return "checkout"; // Trả về checkout.html
+    }
+
+    @GetMapping("/booking-success")
+    public String bookingSuccessPage() {
+        return "booking-success"; // Trả về booking-success.html
+    }
 }

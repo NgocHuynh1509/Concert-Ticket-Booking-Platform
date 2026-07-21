@@ -65,22 +65,31 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Static frontend + h2-console: cong khai
+                        // 1. Static resources + h2-console: Công khai
                         .requestMatchers(
                                 "/", "/home", "/login", "/register", "/*.html", "/css/**", "/js/**", "/assets/**", "/favicon.ico",
-                                "/h2-console/**","/concert/**"
+                                "/h2-console/**", "/concert/**","/checkout","/booking-success","/favicon.ico"
                         ).permitAll()
-                        // Auth endpoints: cong khai (chua co token thi lam sao dang nhap duoc)
+
+                        // 2. Auth & GET Concerts: Công khai
                         .requestMatchers("/api/auth/**").permitAll()
-                        // Theo spec: GET /concerts va GET /concerts/:id KHONG yeu cau dang nhap
                         .requestMatchers(HttpMethod.GET, "/api/concerts", "/api/concerts/**").permitAll()
-                        // Con lai (vd POST/PUT/DELETE concert, /api/users/me) phai dang nhap,
-                        // phan quyen chi tiet theo role nam o @PreAuthorize trong controller
+
+                        // -------------------------------------------------------------
+                        // 3. PHÂN QUYỀN RIÊNG CHO ROLE CUSTOMER
+                        // -------------------------------------------------------------
+                        // Chỉ người dùng có Role CUSTOMER mới được thao tác đặt vé
+                        .requestMatchers("/api/bookings/**").hasRole("CUSTOMER")
+
+                        // Nếu bạn có API lấy thông tin ticket category cho trang checkout:
+                        .requestMatchers(HttpMethod.GET, "/api/ticket-categories/**").hasAnyRole("CUSTOMER", "OPERATOR", "ADMIN")
+
+                        // các request còn lại yêu cầu authenticated
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin())); // cho h2-console hien trong iframe
+                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()));
 
         return http.build();
     }

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Thanh Toán - Checkout</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .checkout-container {
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: bold; }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+            background: #fff;
+            color: #333;
+        }
+        .ticket-summary, .price-summary {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .price-row.total {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #4caf50;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            padding-top: 8px;
+            margin-bottom: 0;
+        }
+        .error-msg { color: #ff4d4d; margin-top: 10px; font-size: 14px; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>ConcertBooking - Checkout</h1>
+</div>
+
+<div class="checkout-container">
+    <h2>Xác nhận đặt vé</h2>
+
+    <div class="ticket-summary">
+        <h3 id="ticket-name">Đang tải thông tin vé...</h3>
+        <p>Đơn giá: <span id="ticket-price">0</span> VNĐ</p>
+        <p>Còn lại: <span id="ticket-stock">0</span> vé</p>
+    </div>
+
+    <form id="checkout-form">
+        <div class="form-group">
+            <label for="quantity">Số lượng vé:</label>
+            <input type="number" id="quantity" value="1" min="1" max="10" required>
+        </div>
+
+        <div class="form-group">
+            <label for="voucher-select">Chọn mã giảm giá (Voucher):</label>
+            <select id="voucher-select">
+                <option value="">-- Không áp dụng voucher --</option>
+            </select>
+        </div>
+
+        <!-- Bảng tính giá tạm tính -->
+        <div class="price-summary">
+            <div class="price-row">
+                <span>Tổng tiền vé:</span>
+                <span><span id="subtotal-val">0</span> VNĐ</span>
+            </div>
+            <div class="price-row">
+                <span>Giảm giá:</span>
+                <span style="color: #ff4d4d;">-<span id="discount-val">0</span> VNĐ</span>
+            </div>
+            <div class="price-row total">
+                <span>Thành tiền:</span>
+                <span><span id="final-val">0</span> VNĐ</span>
+            </div>
+        </div>
+
+        <div id="error-message" class="error-msg"></div>
+
+        <button type="submit" id="btn-submit" class="btn-primary" style="width: 100%; padding: 12px; cursor: pointer;">
+            Đặt vé ngay
+        </button>
+    </form>
+</div>
+
+<script>
+    const token = localStorage.getItem("token");
+    const ticketId = sessionStorage.getItem("checkout_ticket_id");
+
+    let ticketUnitPrice = 0;
+    let availableVouchers = [];
+
+    if (!token) {
+        alert("Vui lòng đăng nhập trước khi đặt vé!");
+        location.href = "/login";
+    }
+
+    if (!ticketId) {
+        alert("Chưa chọn loại vé nào!");
+        location.href = "/";
+    }
+
+    function getIdempotencyKey() {
+        let key = sessionStorage.getItem("current_idempotency_key");
+        if (!key) {
+            key = crypto.randomUUID();
+            sessionStorage.setItem("current_idempotency_key", key);
+        }
+        return key;
+    }
+
+    // Load Thông tin vé + Danh sách Voucher cùng lúc
+    async function initPage() {
+        try {
+            await Promise.all([loadTicketInfo(), loadVouchers()]);
+            calculateTotal();
+        } catch (err) {
+            console.error(err);
+            document.getElementById("error-message").innerText = "Lỗi khởi tạo: " + err.message;
+        }
+    }
+
+    async function loadTicketInfo() {
+        const res = await fetch(`/api/ticket-categories/${ticketId}`, {
+            headers: { "Authorization": "Bearer " + token }
+        });
+        if (res.status === 404) {
+            alert("Loại vé không tồn tại!");
+            location.href = "/";
+            return;
+        }
+        if (!res.ok) throw new Error("Không thể tải thông tin vé");
+
+        const ticket = await res.json();
+        ticketUnitPrice = ticket.price;
+
+        document.getElementById("ticket-name").innerText = ticket.name;
+        document.getElementById("ticket-price").innerText = Number(ticket.price).toLocaleString("vi-VN");
+        document.getElementById("ticket-stock").innerText = ticket.availableQuantity;
+        document.getElementById("quantity").max = ticket.availableQuantity;
+    }
+
+    async function loadVouchers() {
+        const res = await fetch("/api/vouchers/available", {
+            headers: { "Authorization": "Bearer " + token }
+        });
+        if (!res.ok) return; // Nếu lỗi nhẹ lấy voucher thì vẫn cho đặt không voucher
+
+        availableVouchers = await res.json();
+        const selectEl = document.getElementById("voucher-select");
+
+        availableVouchers.forEach(v => {
+            const option = document.createElement("option");
+            option.value = v.code;
+
+            let labelText = `[${v.code}] - `;
+            if (v.discountType === "PERCENTAGE") {
+                labelText += `Giảm ${v.discountValue}%`;
+            } else {
+                labelText += `Giảm ${Number(v.discountValue).toLocaleString("vi-VN")} VNĐ`;
+            }
+            option.textContent = labelText;
+            selectEl.appendChild(option);
+        });
+    }
+
+    // Hàm tính toán giá tiền tức thì khi đổi voucher hoặc số lượng
+    function calculateTotal() {
+        const qty = parseInt(document.getElementById("quantity").value) || 1;
+        const subtotal = ticketUnitPrice * qty;
+
+        const selectedCode = document.getElementById("voucher-select").value;
+        const voucher = availableVouchers.find(v => v.code === selectedCode);
+
+        let discount = 0;
+        if (voucher) {
+            if (voucher.discountType === "PERCENTAGE") {
+                discount = (subtotal * voucher.discountValue) / 100;
+            } else {
+                discount = voucher.discountValue;
+            }
+        }
+        if (discount > subtotal) discount = subtotal;
+
+        const finalAmount = subtotal - discount;
+
+        document.getElementById("subtotal-val").innerText = Number(subtotal).toLocaleString("vi-VN");
+        document.getElementById("discount-val").innerText = Number(discount).toLocaleString("vi-VN");
+        document.getElementById("final-val").innerText = Number(finalAmount).toLocaleString("vi-VN");
+    }
+
+    document.getElementById("quantity").addEventListener("input", calculateTotal);
+    document.getElementById("voucher-select").addEventListener("change", calculateTotal);
+
+    initPage();
+
+    document.getElementById("checkout-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const btnSubmit = document.getElementById("btn-submit");
+        const errorDiv = document.getElementById("error-message");
+        errorDiv.innerText = "";
+        btnSubmit.disabled = true;
+        btnSubmit.innerText = "Đang xử lý...";
+
+        // 💡 TẠO KEY MỚI MỖI LẦN BẤM ĐẶT VÉ ĐỂ TRÁNH TRÙNG PAYLOAD CŨ
+        const idempotencyKey = crypto.randomUUID();
+
+        const quantity = parseInt(document.getElementById("quantity").value);
+        const voucherCode = document.getElementById("voucher-select").value;
+
+        const payload = {
+            ticketCategoryId: parseInt(ticketId),
+            quantity: quantity,
+            voucherCode: voucherCode !== "" ? voucherCode : null
+        };
+
+        try {
+            const response = await fetch("/api/bookings", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token,
+                    "Idempotency-Key": idempotencyKey // Gửi key mới tạo
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.message || "Đặt vé thất bại! Mã lỗi: " + response.status);
+            }
+
+            const result = await response.json();
+
+            // Xóa ticketId tạm
+            sessionStorage.removeItem("checkout_ticket_id");
+
+            const bookingId = result.bookingId || result.id;
+            location.href = `/booking-success?id=${bookingId}`;
+
+        } catch (error) {
+            console.error(error);
+            errorDiv.innerText = error.message;
+            btnSubmit.disabled = false;
+            btnSubmit.innerText = "Đặt vé ngay";
+        }
+    });
+</script>
+</body>
+</html>

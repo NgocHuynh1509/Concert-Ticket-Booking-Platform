@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Đặt Vé Thành Công</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .success-card {
+            max-width: 550px;
+            margin: 50px auto;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            text-align: center;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .status-badge {
+            padding: 4px 12px;
+            background-color: #ff9800;
+            color: #000;
+            font-weight: bold;
+            border-radius: 20px;
+        }
+        .countdown {
+            color: #ff5252;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<div class="success-card">
+    <h1 style="color: #4CAF50;">🎉 Đặt Vé Thành Công!</h1>
+    <p>Cảm ơn bạn đã đặt vé. Thông tin đơn hàng của bạn bên dưới:</p>
+
+    <div style="margin-top: 25px; text-align: left;">
+        <div class="info-row">
+            <span>Booking ID:</span>
+            <strong id="booking-id">-</strong>
+        </div>
+        <div class="info-row">
+            <span>Trạng thái:</span>
+            <span id="booking-status" class="status-badge">-</span>
+        </div>
+        <div class="info-row">
+            <span>Tổng tiền:</span>
+            <span id="total-amount">0 VNĐ</span>
+        </div>
+        <div class="info-row">
+            <span>Giảm giá:</span>
+            <span id="discount-amount" style="color: #4CAF50;">-0 VNĐ</span>
+        </div>
+        <div class="info-row" style="font-size: 1.1em;">
+            <strong>Thành tiền:</strong>
+            <strong id="final-amount" style="color: #ffeb3b;">0 VNĐ</strong>
+        </div>
+        <div class="info-row">
+            <span>Thời hạn giữ vé:</span>
+            <span id="expires-at" class="countdown">-</span>
+        </div>
+    </div>
+
+    <button class="btn-primary" onclick="location.href='/'" style="margin-top: 25px; width: 100%;">
+        Về trang chủ
+    </button>
+</div>
+
+<script>
+    const token = localStorage.getItem("token");
+    const urlParams = new URLSearchParams(window.location.search);
+    const bookingId = urlParams.get("id");
+
+    if (!token) {
+        location.href = "/login";
+    }
+
+    if (!bookingId) {
+        alert("Không tìm thấy thông tin mã đặt vé!");
+        location.href = "/";
+    }
+
+    async function loadBookingDetails() {
+        try {
+            const response = await fetch(`/api/bookings/${bookingId}`, {
+                method: "GET",
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            });
+
+            if (response.status === 401) {
+                alert("Hết phiên đăng nhập.");
+                location.href = "/login";
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error("Không thể tải thông tin đơn hàng!");
+            }
+
+            const data = await response.json();
+
+            // Format tiền VND
+            const formatVND = (amount) => Number(amount || 0).toLocaleString("vi-VN") + " VNĐ";
+
+            document.getElementById("booking-id").innerText = data.id;
+            document.getElementById("booking-status").innerText = data.status || "PENDING_PAYMENT";
+            document.getElementById("total-amount").innerText = formatVND(data.totalAmount);
+            document.getElementById("discount-amount").innerText = "-" + formatVND(data.discountAmount);
+            document.getElementById("final-amount").innerText = formatVND(data.finalAmount);
+
+            // Format Thời gian hết hạn
+            if (data.expiresAt) {
+                const expDate = new Date(data.expiresAt);
+                document.getElementById("expires-at").innerText = expDate.toLocaleString("vi-VN");
+            } else {
+                document.getElementById("expires-at").innerText = "15 phút kể từ khi đặt";
+            }
+
+        } catch (error) {
+            console.error(error);
+            alert(error.message);
+        }
+    }
+
+    loadBookingDetails();
+</script>
+</body>
+</html>
