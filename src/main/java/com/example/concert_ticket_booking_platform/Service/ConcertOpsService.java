@@ -4,6 +4,8 @@ import com.example.concert_ticket_booking_platform.Entity.Concert;
 import com.example.concert_ticket_booking_platform.Entity.TicketCategory;
 import com.example.concert_ticket_booking_platform.Entity.enums.ConcertStatus;
 import com.example.concert_ticket_booking_platform.Repository.ConcertRepo;
+import com.example.concert_ticket_booking_platform.Repository.TicketCategoryRepo;
+import com.example.concert_ticket_booking_platform.dto.concert.TicketCategoryResponse;
 import com.example.concert_ticket_booking_platform.dto.concert.ConcertOpsResponse;
 import com.example.concert_ticket_booking_platform.dto.concert.ConcertSummaryResponse;
 import com.example.concert_ticket_booking_platform.dto.concert.CreateConcertOpsRequest;
@@ -30,6 +32,7 @@ import java.util.Set;
 public class ConcertOpsService {
 
     private final ConcertRepo concertRepository;
+    private final TicketCategoryRepo ticketCategoryRepos;
 
     /**
      * Ma tran chuyen trang thai hop le. Dung EnumMap/EnumSet thay vi if/else long
@@ -128,5 +131,19 @@ public class ConcertOpsService {
                 .concertId(saved.getId())
                 .status(saved.getStatus())
                 .build();
+    }
+    public List<TicketCategoryResponse> getTicketCategories(Long concertId, String name) {
+        return ticketCategoryRepos.findByFilters(concertId, name).stream()
+                .map(tc -> TicketCategoryResponse.builder()
+                        .id(tc.getId())
+                        .concertId(tc.getConcert().getId())
+                        .concertName(tc.getConcert().getName())
+                        .name(tc.getName())
+                        .price(tc.getPrice())
+                        .totalQuantity(tc.getTotalQuantity())
+                        .availableQuantity(tc.getAvailableQuantity())
+                        .soldCount(tc.getTotalQuantity() - tc.getAvailableQuantity())
+                        .build())
+                .toList();
     }
 }

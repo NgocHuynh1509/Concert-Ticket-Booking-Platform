@@ -1,22 +1,14 @@
 package com.example.concert_ticket_booking_platform.Controller;
 
 import com.example.concert_ticket_booking_platform.Service.ConcertOpsService;
-import com.example.concert_ticket_booking_platform.dto.concert.ConcertOpsResponse;
-import com.example.concert_ticket_booking_platform.dto.concert.ConcertSummaryResponse;
-import com.example.concert_ticket_booking_platform.dto.concert.CreateConcertOpsRequest;
-import com.example.concert_ticket_booking_platform.dto.concert.UpdateConcertStatusRequest;
+import com.example.concert_ticket_booking_platform.Service.TicketCategoryService;
+import com.example.concert_ticket_booking_platform.dto.concert.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -36,6 +28,7 @@ import java.util.List;
 public class OperatorConcertController {
 
     private final ConcertOpsService concertOpsService;
+
 
     /**
      * GET /api/ops/concerts
@@ -74,5 +67,13 @@ public class OperatorConcertController {
                                                            @Valid @RequestBody UpdateConcertStatusRequest request) {
         ConcertOpsResponse response = concertOpsService.updateStatus(id, request);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/ticket-categories")
+    public ResponseEntity<List<TicketCategoryResponse>> getTicketCategories(
+            @RequestParam(required = false) Long concertId,
+            @RequestParam(required = false) String name
+    ) {
+        return ResponseEntity.ok(concertOpsService.getTicketCategories(concertId, name));
     }
 }

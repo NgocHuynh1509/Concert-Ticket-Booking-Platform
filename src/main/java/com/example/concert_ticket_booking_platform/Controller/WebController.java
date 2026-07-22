@@ -68,4 +68,11 @@ public class WebController {
         return "op-booking-detail"; // Trả về file templates/ops-booking-detail.html (file đã viết ở bước trước)
     }
 
+    // MỚI: trang tra cứu/lọc ticket categories theo concert hoặc loại vé,
+    // gọi API GET /ops/ticket-categories (đã viết ở TicketCategoryController).
+    @GetMapping("/ops/ticket-categories/view")
+    public String opsTicketCategories() {
+        return "op-ticker"; // Trả về templates/ops-ticket-categories.html
+    }
+
 }

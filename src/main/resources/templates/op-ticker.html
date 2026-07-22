@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket Categories - StageHub Operator</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <style>
+        /* Badge riêng cho tồn kho vé — không có sẵn trong dashboard.css */
+        .badge-stock-ok { background: rgba(63, 168, 89, 0.18); color: #4fbf6b; }
+        .badge-stock-low { background: rgba(214, 158, 46, 0.18); color: #d69e2e; }
+        .badge-stock-out { background: rgba(214, 62, 46, 0.18); color: #e0685e; }
+        .stock-table td.num, .stock-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+        /* =========================================================================
+           FILTER SECTION STYLES (Đã làm mới giao diện bộ lọc)
+           ========================================================================= */
+        .filter-container {
+            display: flex;
+            gap: 16px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            background: var(--bg-surface, #ffffff);
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color, #eaeaea);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+            min-width: 200px;
+            max-width: 300px; /* Khống chế chiều rộng tối đa giúp ô không bị thưa */
+        }
+
+        .filter-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary, #666);
+        }
+
+        /* Custom Dropdown / Select */
+        .form-select {
+            width: 100%;
+            height: 40px;
+            padding: 0 36px 0 12px;
+            font-size: 14px;
+            border: 1px solid var(--border-color, #ccc);
+            border-radius: 8px;
+            background-color: var(--bg-main, #fff);
+            color: var(--text-primary, #333);
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s;
+
+            /* Reset kiểu mặc định xấu xí của trình duyệt */
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+
+            /* Mũi tên custom hiện đại */
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 10px auto;
+        }
+
+        .form-select:hover {
+            border-color: var(--primary-color, #888);
+        }
+
+        .form-select:focus {
+            border-color: var(--primary-color, #4fbf6b);
+            box-shadow: 0 0 0 3px rgba(79, 191, 107, 0.15);
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            height: 40px;
+        }
+
+        .filter-actions .btn-primary,
+        .filter-actions .btn-ghost {
+            height: 100%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 20px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="navbar header">
+    <div class="nav-actions" id="navbar-actions"></div>
+</div>
+
+<div class="container home-container">
+    <h1>Ticket Categories</h1>
+    <div class="ops-tabs" style="margin: 12px 0 18px;">
+        <a href="/ops/dashboard" class="btn-ghost" style="margin-right:8px;">Concert</a>
+        <a href="/ops/bookings" class="btn-ghost" style="margin-right:8px;">Booking</a>
+        <button class="btn-primary" disabled>Tra cứu Ticket Categories</button>
+    </div>
+    <p style="color: var(--text-secondary); margin-top:6px;">Lọc theo concert hoặc từng loại vé để đối soát số lượng còn lại/đã bán.</p>
+
+    <div id="access-warning"></div>
+
+    <div id="ops-content" style="display:none;">
+        <div class="panel">
+            <!-- Khu vực bộ lọc đã được cấu trúc lại chỉn chu -->
+            <div class="filter-container">
+                <div class="filter-group">
+                    <label for="filter-concert-id">Concert</label>
+                    <select id="filter-concert-id" class="form-select">
+                        <option value="">Tất cả concert</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-name">Loại vé</label>
+                    <select id="filter-name" class="form-select">
+                        <option value="">Tất cả loại vé</option>
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <button type="button" class="btn-primary" id="btn-search">Lọc</button>
+                    <button type="button" class="btn-ghost" id="btn-reset">Làm mới</button>
+                </div>
+            </div>
+
+            <div id="filter-error-box"></div>
+
+            <div style="display:flex; justify-content:space-between; color: var(--text-secondary); font-size:13px; margin: 14px 0 6px;">
+                <span id="result-count">—</span>
+            </div>
+
+            <div id="stock-table-wrap">
+                <div class="empty-state">Đang tải danh sách...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // =========================================================================
+    // AUTH HELPERS — giữ nguyên y hệt bản trong ops-dashboard.html
+    // =========================================================================
+
+    function getAuth() {
+        const token = localStorage.getItem("token");
+        if (!token) {
+            return null;
+        }
+        return {
+            token: token,
+            username: localStorage.getItem("username"),
+            role: localStorage.getItem("role"),
+            userId: localStorage.getItem("userId")
+        };
+    }
+
+    function clearAuth() {
+        localStorage.removeItem("token");
+        localStorage.removeItem("username");
+        localStorage.removeItem("role");
+        localStorage.removeItem("userId");
+    }
+
+    function isLoggedIn() {
+        return !!getAuth();
+    }
+
+    function hasRole(...roles) {
+        const auth = getAuth();
+        return !!auth && roles.includes(auth.role);
+    }
+
+    async function apiFetch(path, options = {}) {
+        const auth = getAuth();
+        const headers = Object.assign(
+            { 'Content-Type': 'application/json' },
+            options.headers || {}
+        );
+        if (auth && auth.token) {
+            headers['Authorization'] = `Bearer ${auth.token}`;
+        }
+
+        const res = await fetch(path, Object.assign({}, options, { headers }));
+
+        let body = null;
+        const text = await res.text();
+        if (text) {
+            try { body = JSON.parse(text); } catch (e) { body = text; }
+        }
+
+        if (!res.ok) {
+            const message = (body && body.message) ? body.message : `Lỗi ${res.status}`;
+            const err = new Error(message);
+            err.status = res.status;
+            err.body = body;
+            throw err;
+        }
+
+        return body;
+    }
+
+    function renderNavbar(containerId = 'navbar-actions') {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+
+        const auth = getAuth();
+
+        if (!auth) {
+            el.innerHTML = `
+            <a href="/login" class="btn-ghost">Đăng nhập</a>
+            <a href="/register" class="btn-primary">Đăng ký</a>
+        `;
+            return;
+        }
+
+        let opsLink = '';
+        if (auth.role === 'OPERATOR' || auth.role === 'ADMIN') {
+            opsLink = `<a href="/ops/dashboard" class="btn-ghost">Operator dashboard</a>`;
+        }
+
+        el.innerHTML = `
+        ${opsLink}
+        <span style="color: var(--text-secondary); font-size: 14px; margin: 0 8px;">${escapeHtml(auth.username)} · ${escapeHtml(auth.role)}</span>
+        <button class="btn-ghost" id="logout-btn">Đăng xuất</button>
+    `;
+
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                clearAuth();
+                window.location.href = '/';
+            });
+        }
+    }
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => renderNavbar());
+
+    // =========================================================================
+    // ACCESS CHECK — giống hệt checkAccess() trong ops-dashboard.html
+    // =========================================================================
+
+    function checkAccess() {
+        const warningBox = document.getElementById('access-warning');
+        const content = document.getElementById('ops-content');
+
+        if (!isLoggedIn()) {
+            warningBox.innerHTML = `<div class="alert alert-error">Bạn cần đăng nhập bằng tài khoản OPERATOR hoặc ADMIN. <a href="/login">Đăng nhập</a></div>`;
+            return false;
+        }
+        if (!hasRole('OPERATOR', 'ADMIN')) {
+            warningBox.innerHTML = `<div class="alert alert-error">Tài khoản của bạn không có quyền OPERATOR/ADMIN.</div>`;
+            return false;
+        }
+        content.style.display = 'block';
+        return true;
+    }
+
+    // =========================================================================
+    // DROPDOWN DATA — nạp danh sách concert + danh sách tên loại vé (distinct)
+    // =========================================================================
+
+    async function loadConcertOptions() {
+        const select = document.getElementById('filter-concert-id');
+        try {
+            const concerts = await apiFetch('/api/ops/concerts');
+            const options = concerts.map(c => `<option value="${c.id}">${escapeHtml(c.name)} (#${c.id})</option>`).join('');
+            select.insertAdjacentHTML('beforeend', options);
+        } catch (err) {
+            console.error('Không thể tải danh sách concert:', err);
+        }
+    }
+
+    async function loadTicketCategoryNameOptions(concertId) {
+        const select = document.getElementById('filter-name');
+
+        // Xóa toàn bộ option cũ (trừ option đầu "Tất cả loại vé") trước khi render lại
+        select.innerHTML = '<option value="">Tất cả loại vé</option>';
+
+        try {
+            const params = new URLSearchParams();
+            if (concertId) params.set('concertId', concertId);
+
+            const rows = await apiFetch(`/api/ops/concerts/ticket-categories?${params.toString()}`);
+            const distinctNames = [...new Set(rows.map(r => r.name))].sort((a, b) => a.localeCompare(b, 'vi'));
+            const options = distinctNames.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+            select.insertAdjacentHTML('beforeend', options);
+        } catch (err) {
+            console.error('Không thể tải danh sách loại vé:', err);
+        }
+    }
+
+    // Event Listeners cho Bộ Lọc
+    document.getElementById('filter-concert-id').addEventListener('change', (e) => {
+        loadTicketCategoryNameOptions(e.target.value);
+    });
+
+    document.getElementById('btn-search').addEventListener('click', loadTicketCategories);
+
+    document.getElementById('btn-reset').addEventListener('click', () => {
+        document.getElementById('filter-concert-id').value = '';
+        document.getElementById('filter-name').value = '';
+        loadTicketCategoryNameOptions('');
+        loadTicketCategories();
+    });
+
+    // =========================================================================
+    // TICKET CATEGORIES LOGIC
+    // =========================================================================
+
+    function stockBadge(row) {
+        if (row.availableQuantity <= 0) return `<span class="badge badge-stock-out">Hết vé</span>`;
+        if (row.availableQuantity <= row.totalQuantity * 0.1) return `<span class="badge badge-stock-low">Sắp hết</span>`;
+        return `<span class="badge badge-stock-ok">Còn vé</span>`;
+    }
+
+    function renderStockTable(rows) {
+        const wrap = document.getElementById('stock-table-wrap');
+        const countEl = document.getElementById('result-count');
+
+        if (!rows || !rows.length) {
+            wrap.innerHTML = '<div class="empty-state">Không có kết quả khớp điều kiện lọc.</div>';
+            countEl.textContent = '0 kết quả';
+            return;
+        }
+
+        countEl.textContent = `${rows.length} kết quả`;
+
+        const body = rows.map(r => `
+            <tr>
+                <td>${escapeHtml(r.concertName)}</td>
+                <td>${escapeHtml(r.name)}</td>
+                <td class="num">${Number(r.price ?? 0).toLocaleString('vi-VN')} đ</td>
+                <td class="num">${r.totalQuantity ?? 0}</td>
+                <td class="num">${r.availableQuantity ?? 0}</td>
+                <td class="num">${r.soldCount ?? 0}</td>
+                <td>${stockBadge(r)}</td>
+            </tr>
+        `).join('');
+
+        wrap.innerHTML = `
+        <table class="ops-table stock-table">
+            <thead>
+                <tr>
+                    <th>Concert</th>
+                    <th>Loại vé</th>
+                    <th class="num">Giá</th>
+                    <th class="num">Tổng vé</th>
+                    <th class="num">Còn lại</th>
+                    <th class="num">Đã bán</th>
+                    <th>Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody>${body}</tbody>
+        </table>
+    `;
+    }
+
+    async function loadTicketCategories() {
+        const wrap = document.getElementById('stock-table-wrap');
+        const errorBox = document.getElementById('filter-error-box');
+        errorBox.innerHTML = '';
+
+        const concertId = document.getElementById('filter-concert-id').value;
+        const name = document.getElementById('filter-name').value;
+
+        const params = new URLSearchParams();
+        if (concertId) params.set('concertId', concertId);
+        if (name) params.set('name', name);
+
+        wrap.innerHTML = '<div class="empty-state">Đang tải...</div>';
+
+        try {
+            const rows = await apiFetch(`/api/ops/concerts/ticket-categories?${params.toString()}`);
+            renderStockTable(rows);
+        } catch (err) {
+            if (err.status === 401) {
+                clearAuth();
+                window.location.href = '/login';
+                return;
+            }
+            wrap.innerHTML = '';
+            errorBox.innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`;
+            document.getElementById('result-count').textContent = '—';
+        }
+    }
+
+    // KHỞI TẠO DỮ LIỆU
+    if (checkAccess()) {
+        loadConcertOptions();
+        loadTicketCategoryNameOptions('');
+        loadTicketCategories();
+    }
+</script>
+</body>
+</html>
