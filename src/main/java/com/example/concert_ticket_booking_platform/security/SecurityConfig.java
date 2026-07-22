@@ -81,7 +81,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/", "/home", "/login", "/register", "/*.html", "/css/**", "/js/**", "/assets/**", "/favicon.ico",
                                 "/h2-console/**", "/concert/**", "/checkout", "/payment", "/booking-success",
-                                "/my-bookings", "/booking/**","/ops/**"
+                                "/my-bookings", "/booking/**","/ops/**","/swagger-ui/**", "/v3/api-docs/**"
                         ).permitAll()
 
                         // 2. Auth & GET Concerts: Công khai
