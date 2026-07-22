@@ -351,6 +351,12 @@
             } else {
                 labelText += `Giảm ${Number(v.discountValue).toLocaleString("vi-VN")} VNĐ`;
             }
+
+            if (v.usable === false) {
+                option.disabled = true;
+                labelText += ` (${v.reason})`;
+            }
+
             option.textContent = labelText;
             selectEl.appendChild(option);
         });

@@ -4,7 +4,7 @@ import com.example.concert_ticket_booking_platform.Entity.User;
 import com.example.concert_ticket_booking_platform.Entity.Voucher;
 import com.example.concert_ticket_booking_platform.Repository.VoucherRepo;
 import com.example.concert_ticket_booking_platform.Repository.VoucherUsageRepo;
-import com.example.concert_ticket_booking_platform.dto.voucher.VoucherResponse;
+import com.example.concert_ticket_booking_platform.dto.booking.VoucherResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -36,12 +36,26 @@ public class VoucherController {
         List<Voucher> activeVouchers = voucherRepo.findAll().stream()
                 .filter(v -> Boolean.TRUE.equals(v.getActive()))
                 .filter(v -> !now.isBefore(v.getValidFrom()) && !now.isAfter(v.getValidTo()))
-                .filter(v -> v.getUsedCount() < v.getMaxUsage())
-                .filter(v -> voucherUsageRepo.countByVoucherAndUser(v, currentUser) < v.getPerUserLimit())
                 .toList();
 
         List<VoucherResponse> response = activeVouchers.stream()
-                .map(VoucherResponse::new)
+                .map(v -> {
+                    boolean isUsable = true;
+                    String reason = null;
+
+                    if (v.getUsedCount() >= v.getMaxUsage()) {
+                        isUsable = false;
+                        reason = "Đã hết lượt sử dụng";
+                    } else {
+                        long usedByThisUser = voucherUsageRepo.countByVoucherAndUser(v, currentUser);
+                        if (usedByThisUser >= v.getPerUserLimit()) {
+                            isUsable = false;
+                            reason = "Bạn đã dùng tối đa số lượt";
+                        }
+                    }
+
+                    return new VoucherResponse(v, isUsable, reason);
+                })
                 .toList();
 
         return ResponseEntity.ok(response);
