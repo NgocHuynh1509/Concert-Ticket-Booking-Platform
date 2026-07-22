@@ -8,4 +8,5 @@ import java.util.List;
 public interface TicketCategoryRepo extends JpaRepository<TicketCategory, Long> {
 
     List<TicketCategory> findByConcertId(Long concertId);
+    List<TicketCategory> findAllByConcertId(Long concertId);
 }

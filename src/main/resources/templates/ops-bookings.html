@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Booking - StageHub Operator</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/booking-op.css">
+</head>
+<body>
+
+<div class="navbar header">
+    <div class="nav-actions" id="navbar-actions"></div>
+</div>
+
+<div class="container home-container">
+    <h1>Operator dashboard</h1>
+    <div class="ops-tabs" style="margin: 12px 0 18px;">
+        <a href="/ops/dashboard" class="btn-ghost" style="margin-right:8px;">Concert</a>
+        <a href="/ops/bookings" class="btn-primary">Booking</a>
+    </div>
+
+    <div id="access-warning"></div>
+
+    <div id="ops-content" style="display:none;">
+
+        <!-- ================= FILTER PANEL ================= -->
+        <div class="panel" style="margin-bottom:20px;">
+            <h2 style="margin-bottom:14px;">Bộ lọc</h2>
+            <!-- ================= FILTER PANEL ================= -->
+            <div class="panel">
+                <h2>Bộ lọc tìm kiếm</h2>
+                <form id="filter-form" class="filter-grid">
+                    <div class="field">
+                        <label for="f-concert">Concert</label>
+                        <select id="f-concert">
+                            <option value="">-- Tất cả --</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="f-category">Loại vé</label>
+                        <select id="f-category" disabled>
+                            <option value="">-- Chọn concert trước --</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="f-booking-status">Trạng thái booking</label>
+                        <select id="f-booking-status">
+                            <option value="">-- Tất cả --</option>
+                            <option value="PENDING_PAYMENT">PENDING_PAYMENT</option>
+                            <option value="PAID">PAID</option>
+                            <option value="CANCELLED">CANCELLED</option>
+                            <option value="FAILED">FAILED</option>
+                            <option value="EXPIRED">EXPIRED</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="f-payment-status">Trạng thái thanh toán</label>
+                        <select id="f-payment-status">
+                            <option value="">-- Tất cả --</option>
+                            <option value="PENDING">PENDING</option>
+                            <option value="SUCCESS">SUCCESS</option>
+                            <option value="FAILED">FAILED</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="f-created-from">Từ ngày (Tạo lúc)</label>
+                        <input type="datetime-local" id="f-created-from">
+                    </div>
+
+                    <div class="field">
+                        <label for="f-created-to">Đến ngày (Tạo lúc)</label>
+                        <input type="datetime-local" id="f-created-to">
+                    </div>
+
+                    <div class="field">
+                        <label for="f-email">Email khách hàng</label>
+                        <input type="text" id="f-email" placeholder="nguyen@gmail.com">
+                    </div>
+
+                    <div class="field">
+                        <label for="f-idem">Idempotency key</label>
+                        <input type="text" id="f-idem" placeholder="Mã request...">
+                    </div>
+
+                    <!-- Căn hàng riêng cho Nút Lọc & Xóa -->
+                    <div class="filter-actions" style="grid-column: 1 / -1; justify-content: flex-end; margin-top: 8px;">
+                        <button type="button" class="btn-ghost" id="reset-filter-btn">Xóa lọc</button>
+                        <button type="submit" class="btn-primary" style="min-width: 120px;">Lọc dữ liệu</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ================= TABLE ================= -->
+        <div class="panel">
+            <h2 style="margin-bottom:6px;">Danh sách booking</h2>
+            <div id="list-error-box"></div>
+            <div id="booking-table-wrap">
+                <div class="empty-state">Đang tải danh sách booking...</div>
+            </div>
+
+            <div id="pagination-wrap" style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+                <span id="page-info" style="color: var(--text-secondary); font-size:13px;"></span>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn-ghost" id="prev-page-btn">← Trước</button>
+                    <button class="btn-ghost" id="next-page-btn">Sau →</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ================= DETAIL MODAL ================= -->
+<div id="detail-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <h2 id="detail-title" style="margin:0;">Chi tiết booking</h2>
+            <button class="icon-btn" id="close-modal-btn">✕</button>
+        </div>
+        <div id="detail-body">
+            <div class="empty-state">Đang tải...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // =========================================================================
+    // PART 1: API & AUTH HELPERS (giữ nguyên logic từ ops-dashboard.html)
+    // =========================================================================
+
+    function getAuth() {
+        const token = localStorage.getItem("token");
+        if (!token) return null;
+        return {
+            token: token,
+            username: localStorage.getItem("username"),
+            role: localStorage.getItem("role"),
+            userId: localStorage.getItem("userId")
+        };
+    }
+
+    function clearAuth() {
+        localStorage.removeItem("token");
+        localStorage.removeItem("username");
+        localStorage.removeItem("role");
+        localStorage.removeItem("userId");
+    }
+
+    function isLoggedIn() {
+        return !!getAuth();
+    }
+
+    function hasRole(...roles) {
+        const auth = getAuth();
+        return !!auth && roles.includes(auth.role);
+    }
+
+    async function apiFetch(path, options = {}) {
+        const auth = getAuth();
+        const headers = Object.assign(
+            { 'Content-Type': 'application/json' },
+            options.headers || {}
+        );
+        if (auth && auth.token) {
+            headers['Authorization'] = `Bearer ${auth.token}`;
+        }
+
+        const res = await fetch(path, Object.assign({}, options, { headers }));
+
+        let body = null;
+        const text = await res.text();
+        if (text) {
+            try { body = JSON.parse(text); } catch (e) { body = text; }
+        }
+
+        if (!res.ok) {
+            const message = (body && body.message) ? body.message : `Lỗi ${res.status}`;
+            const err = new Error(message);
+            err.status = res.status;
+            err.body = body;
+            throw err;
+        }
+
+        return body;
+    }
+
+    function renderNavbar(containerId = 'navbar-actions') {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+
+        const auth = getAuth();
+
+        if (!auth) {
+            el.innerHTML = `
+            <a href="/login" class="btn-ghost">Đăng nhập</a>
+            <a href="/register" class="btn-primary">Đăng ký</a>
+        `;
+            return;
+        }
+
+        let opsLink = '';
+        if (auth.role === 'OPERATOR' || auth.role === 'ADMIN') {
+            opsLink = `<a href="/ops/dashboard" class="btn-ghost">Operator dashboard</a>`;
+        }
+
+        el.innerHTML = `
+        ${opsLink}
+        <span style="color: var(--text-secondary); font-size: 14px; margin: 0 8px;">${escapeHtml(auth.username)} · ${escapeHtml(auth.role)}</span>
+        <button class="btn-ghost" id="logout-btn">Đăng xuất</button>
+    `;
+
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                clearAuth();
+                window.location.href = '/';
+            });
+        }
+    }
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;');
+    }
+
+    function formatDateTime(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        return d.toLocaleString('vi-VN', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    }
+
+    function formatMoney(amount) {
+        if (amount === null || amount === undefined) return '';
+        return Number(amount).toLocaleString('vi-VN') + ' đ';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => renderNavbar());
+
+    // =========================================================================
+    // PART 2: BADGE CLASSES
+    // =========================================================================
+
+    const bookingBadgeClass = {
+        PAID: 'badge-published',
+        PENDING_PAYMENT: 'badge-draft',
+        CANCELLED: 'badge-cancelled',
+        FAILED: 'badge-cancelled',
+        EXPIRED: 'badge-cancelled'
+    };
+
+    const paymentBadgeClass = {
+        SUCCESS: 'badge-published',
+        PENDING: 'badge-draft',
+        FAILED: 'badge-cancelled'
+    };
+
+    function badge(value, map) {
+        if (!value) return '<span style="color: var(--text-secondary); font-size:12px;">—</span>';
+        const cls = map[value] || '';
+        return `<span class="badge ${cls}">${escapeHtml(value)}</span>`;
+    }
+
+    // =========================================================================
+    // PART 3: ACCESS CHECK
+    // =========================================================================
+
+    function checkAccess() {
+        const warningBox = document.getElementById('access-warning');
+        const content = document.getElementById('ops-content');
+
+        if (!isLoggedIn()) {
+            warningBox.innerHTML = `<div class="alert alert-error">Bạn cần đăng nhập bằng tài khoản OPERATOR hoặc ADMIN. <a href="/login">Đăng nhập</a></div>`;
+            return false;
+        }
+        if (!hasRole('OPERATOR', 'ADMIN')) {
+            warningBox.innerHTML = `<div class="alert alert-error">Tài khoản của bạn không có quyền OPERATOR/ADMIN.</div>`;
+            return false;
+        }
+        content.style.display = 'block';
+        return true;
+    }
+
+    // =========================================================================
+    // PART 4: FILTER STATE + LOAD CONCERT/CATEGORY DROPDOWNS
+    // =========================================================================
+
+    let currentPage = 0;
+    const PAGE_SIZE = 20;
+    let lastPageResult = null; // giữ lại response phân trang gần nhất (để biết còn trang sau không)
+
+    async function loadConcertDropdown() {
+        const select = document.getElementById('f-concert');
+        try {
+            const concerts = await apiFetch('/api/ops/concerts');
+            (concerts || []).forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = `${c.name} (#${c.id})`;
+                select.appendChild(opt);
+            });
+        } catch (err) {
+            // Không chặn cả trang nếu lỗi load dropdown — chỉ để trống, operator vẫn lọc được theo tiêu chí khác
+            console.error('Không tải được danh sách concert:', err);
+        }
+    }
+
+    // NOTE: giả định có endpoint trả chi tiết concert kèm ticketCategories, dạng
+    // GET /api/concerts/{id} -> { ..., ticketCategories: [{id, name, ...}] }
+    // Nếu backend của bạn có endpoint khác (vd /api/ops/concerts/{id}), đổi lại URL bên dưới.
+    // Sự kiện khi người dùng chọn Concert -> Load các loại vé tương ứng
+    document.getElementById('f-concert').addEventListener('change', async (e) => {
+        const concertId = e.target.value;
+        const categorySelect = document.getElementById('f-category');
+
+        // Reset dropdown loại vé
+        categorySelect.innerHTML = '<option value="">-- Tất cả loại vé --</option>';
+
+        if (!concertId) {
+            categorySelect.disabled = true;
+            return;
+        }
+
+        try {
+            // Gọi API mới thêm ở Backend
+            const categories = await apiFetch(`/api/ticket-categories/concert/${concertId}`);
+
+            if (Array.isArray(categories) && categories.length > 0) {
+                categories.forEach(tc => {
+                    const opt = document.createElement('option');
+                    opt.value = tc.id;
+                    // Hiển thị tên loại vé + giá vé (nếu DTO có chứa field price/unitPrice)
+                    const priceText = tc.price ? ` - ${formatMoney(tc.price)}` : '';
+                    opt.textContent = `${tc.name}${priceText}`;
+                    categorySelect.appendChild(opt);
+                });
+                categorySelect.disabled = false;
+            } else {
+                categorySelect.innerHTML = '<option value="">-- Concert này chưa có loại vé --</option>';
+                categorySelect.disabled = true;
+            }
+
+        } catch (err) {
+            console.error('Lỗi khi tải danh sách loại vé:', err);
+            categorySelect.innerHTML = '<option value="">-- Không tải được loại vé --</option>';
+            categorySelect.disabled = true;
+        }
+    });
+
+    function buildFilterQuery() {
+        const params = new URLSearchParams();
+
+        const concertId = document.getElementById('f-concert').value;
+        const categoryId = document.getElementById('f-category').value;
+        const bookingStatus = document.getElementById('f-booking-status').value;
+        const paymentStatus = document.getElementById('f-payment-status').value;
+        const createdFrom = document.getElementById('f-created-from').value;
+        const createdTo = document.getElementById('f-created-to').value;
+        const email = document.getElementById('f-email').value.trim();
+        const idem = document.getElementById('f-idem').value.trim();
+
+        if (concertId) params.set('concertId', concertId);
+        if (categoryId) params.set('ticketCategoryId', categoryId);
+        if (bookingStatus) params.set('bookingStatus', bookingStatus);
+        if (paymentStatus) params.set('paymentStatus', paymentStatus);
+        if (createdFrom) params.set('createdFrom', `${createdFrom}:00`);
+        if (createdTo) params.set('createdTo', `${createdTo}:00`);
+        if (email) params.set('userEmail', email);
+        if (idem) params.set('idempotencyKey', idem);
+
+        params.set('page', currentPage);
+        params.set('size', PAGE_SIZE);
+
+        return params.toString();
+    }
+
+    // =========================================================================
+    // PART 5: LOAD & RENDER BOOKING LIST
+    // =========================================================================
+
+    async function loadBookings() {
+        const wrap = document.getElementById('booking-table-wrap');
+        const errorBox = document.getElementById('list-error-box');
+        errorBox.innerHTML = '';
+        wrap.innerHTML = '<div class="empty-state">Đang tải danh sách booking...</div>';
+
+        try {
+            const query = buildFilterQuery();
+            const result = await apiFetch(`/api/ops/bookings?${query}`);
+            lastPageResult = result;
+            renderBookingTable(result.content || []);
+            renderPagination(result);
+        } catch (err) {
+            wrap.innerHTML = '';
+            errorBox.innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`;
+        }
+    }
+
+    function renderBookingTable(bookings) {
+        const wrap = document.getElementById('booking-table-wrap');
+
+        if (!bookings.length) {
+            wrap.innerHTML = '<div class="empty-state">Không có booking nào khớp bộ lọc.</div>';
+            return;
+        }
+
+        const rows = bookings.map(b => {
+            // Đường dẫn View cho Operator
+            const detailViewUrl = `/ops/bookings/${b.bookingId}`;
+
+            return `
+        <tr>
+            <td>
+                <a href="${detailViewUrl}" style="font-weight: 700; color: var(--accent-color, #ff4b2b);">#${b.bookingId}</a><br>
+                <span style="color: var(--text-secondary); font-size:12px;">${formatDateTime(b.createdAt)}</span>
+            </td>
+            <td><strong>${escapeHtml(b.userEmail || '—')}</strong></td>
+            <td>
+                ${escapeHtml(b.concertName || '—')}<br>
+                <span style="color: var(--text-secondary); font-size:12px;">
+                    ${escapeHtml(b.ticketCategoryName || '')} × ${b.totalTicketCount}
+                </span>
+            </td>
+            <td>${badge(b.status, bookingBadgeClass)}</td>
+            <td>${badge(b.latestPaymentStatus, paymentBadgeClass)}</td>
+            <td><strong style="color: #2e7d32;">${formatMoney(b.finalAmount)}</strong></td>
+            <td>
+                <a href="${detailViewUrl}" class="btn-ghost" style="padding: 6px 14px; font-size: 12px; text-decoration: none; display: inline-block;">Xem</a>
+            </td>
+        </tr>
+    `}).join('');
+
+        wrap.innerHTML = `
+        <table class="ops-table">
+            <thead>
+                <tr>
+                    <th>Booking</th>
+                    <th>Khách hàng</th>
+                    <th>Concert / Vé</th>
+                    <th>Trạng thái booking</th>
+                    <th>Thanh toán</th>
+                    <th>Tổng tiền</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
+    `;
+    }
+
+    function renderPagination(result) {
+        const pageInfo = document.getElementById('page-info');
+        const prevBtn = document.getElementById('prev-page-btn');
+        const nextBtn = document.getElementById('next-page-btn');
+
+        const totalElements = result.totalElements ?? 0;
+        const totalPages = result.totalPages ?? 1;
+        const number = result.number ?? currentPage;
+
+        pageInfo.textContent = totalElements > 0
+            ? `Trang ${number + 1}/${totalPages} · ${totalElements} booking`
+            : '';
+
+        prevBtn.disabled = (result.first ?? number === 0);
+        nextBtn.disabled = (result.last ?? number >= totalPages - 1);
+    }
+
+    document.getElementById('prev-page-btn').addEventListener('click', () => {
+        if (currentPage > 0) {
+            currentPage--;
+            loadBookings();
+        }
+    });
+
+    document.getElementById('next-page-btn').addEventListener('click', () => {
+        if (lastPageResult && !lastPageResult.last) {
+            currentPage++;
+            loadBookings();
+        }
+    });
+
+    document.getElementById('filter-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        currentPage = 0;
+        loadBookings();
+    });
+
+    document.getElementById('reset-filter-btn').addEventListener('click', () => {
+        document.getElementById('filter-form').reset();
+        document.getElementById('f-category').innerHTML = '<option value="">-- Chọn concert trước --</option>';
+        document.getElementById('f-category').disabled = true;
+        currentPage = 0;
+        loadBookings();
+    });
+
+    // =========================================================================
+    // PART 6: DETAIL MODAL
+    // =========================================================================
+
+    async function openDetail(bookingId) {
+        const modal = document.getElementById('detail-modal');
+        const body = document.getElementById('detail-body');
+        const title = document.getElementById('detail-title');
+
+        title.textContent = `Chi tiết booking #${bookingId}`;
+        body.innerHTML = '<div class="empty-state">Đang tải...</div>';
+        modal.style.display = 'flex';
+
+        try {
+            const d = await apiFetch(`/api/ops/bookings/${bookingId}`);
+            body.innerHTML = renderDetailBody(d);
+        } catch (err) {
+            body.innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`;
+        }
+    }
+
+    function renderDetailBody(d) {
+        const itemsRows = (d.items || []).map(it => `
+            <tr>
+                <td>${escapeHtml(it.concertName)}<br>
+                    <span style="color: var(--text-secondary); font-size:12px;">${escapeHtml(it.concertVenue)} · ${formatDateTime(it.concertEventDate)}</span>
+                </td>
+                <td>${escapeHtml(it.ticketCategoryName)}</td>
+                <td>${it.quantity}</td>
+                <td>${formatMoney(it.unitPrice)}</td>
+                <td>${formatMoney(it.subtotal)}</td>
+            </tr>
+        `).join('');
+
+        const paymentsRows = (d.payments || []).map(p => `
+            <tr>
+                <td>${escapeHtml(p.transactionRef || '—')}</td>
+                <td>${escapeHtml(p.method || '—')}</td>
+                <td>${badge(p.status, paymentBadgeClass)}</td>
+                <td>${formatMoney(p.amount)}</td>
+                <td>${p.paidAt ? formatDateTime(p.paidAt) : '—'}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <div class="detail-section">
+                <h3>Khách hàng</h3>
+                <p><b>Email:</b> ${escapeHtml(d.userEmail)} &nbsp; <b>User ID:</b> ${d.userId}</p>
+                ${d.userFullName ? `<p><b>Họ tên:</b> ${escapeHtml(d.userFullName)}</p>` : ''}
+            </div>
+
+            <div class="detail-section">
+                <h3>Booking</h3>
+                <p><b>Trạng thái:</b> ${badge(d.status, bookingBadgeClass)} &nbsp;
+                   <b>Idempotency key:</b> ${escapeHtml(d.idempotencyKey)}</p>
+                <p><b>Voucher:</b> ${d.voucherCode ? escapeHtml(d.voucherCode) : '— không dùng —'}</p>
+                <p>
+                    <b>Tổng gốc:</b> ${formatMoney(d.totalAmount)} &nbsp;
+                    <b>Giảm giá:</b> ${formatMoney(d.discountAmount)} &nbsp;
+                    <b>Thành tiền:</b> ${formatMoney(d.finalAmount)}
+                </p>
+                <p><b>Tạo lúc:</b> ${formatDateTime(d.createdAt)} &nbsp; <b>Hết hạn giữ chỗ:</b> ${d.expiresAt ? formatDateTime(d.expiresAt) : '—'}</p>
+            </div>
+
+            <div class="detail-section">
+                <h3>Vé đã đặt</h3>
+                <table class="ops-table">
+                    <thead><tr><th>Concert</th><th>Loại vé</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
+                    <tbody>${itemsRows || '<tr><td colspan="5" class="empty-state">Không có item</td></tr>'}</tbody>
+                </table>
+            </div>
+
+            <div class="detail-section">
+                <h3>Lịch sử thanh toán</h3>
+                <table class="ops-table">
+                    <thead><tr><th>Mã giao dịch</th><th>Phương thức</th><th>Trạng thái</th><th>Số tiền</th><th>Thanh toán lúc</th></tr></thead>
+                    <tbody>${paymentsRows || '<tr><td colspan="5" class="empty-state">Chưa có lần thanh toán nào</td></tr>'}</tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    document.getElementById('close-modal-btn').addEventListener('click', () => {
+        document.getElementById('detail-modal').style.display = 'none';
+    });
+    document.getElementById('detail-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'detail-modal') {
+            document.getElementById('detail-modal').style.display = 'none';
+        }
+    });
+
+    // =========================================================================
+    // INIT
+    // =========================================================================
+
+    if (checkAccess()) {
+        loadConcertDropdown();
+        loadBookings();
+    }
+</script>
+</body>
+</html>

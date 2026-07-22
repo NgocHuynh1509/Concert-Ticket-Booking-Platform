@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface PaymentRepo extends JpaRepository<Payment, Long> {
     // 💡 Thêm dòng này vào:
     Optional<Payment> findByBookingId(Long bookingId);
+    List<Payment> findAllByBookingIdOrderByCreatedAtDesc(Long bookingId);
 }

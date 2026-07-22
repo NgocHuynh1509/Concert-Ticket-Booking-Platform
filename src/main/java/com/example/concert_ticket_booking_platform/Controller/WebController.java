@@ -58,4 +58,14 @@ public class WebController {
         return "ops-dashboard";
     }
 
+    @GetMapping("/ops/bookings")
+    public String opsBookings() {
+        return "ops-bookings"; // Trả về ops-bookings.html
+    }
+
+    @GetMapping("/ops/bookings/{id}")
+    public String opsBookingDetail() {
+        return "op-booking-detail"; // Trả về file templates/ops-booking-detail.html (file đã viết ở bước trước)
+    }
+
 }

@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -27,5 +28,16 @@ public class TicketCategoryController {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("message", "Loại vé không tồn tại"));
+    }
+
+    @GetMapping("/concert/{concertId}")
+    public ResponseEntity<List<TicketCategoryResponse>> getByConcertId(@PathVariable Long concertId) {
+        // Đảm bảo trong TicketCategoryRepo có phương thức findAllByConcertId(Long concertId)
+        var categories = ticketCategoryRepo.findAllByConcertId(concertId)
+                .stream()
+                .map(TicketCategoryResponse::new)
+                .toList();
+
+        return ResponseEntity.ok(categories);
     }
 }

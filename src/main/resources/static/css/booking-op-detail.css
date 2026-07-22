@@ -1,0 +1,153 @@
+/* ==========================================================================
+   STAGEHUB OPERATOR - BOOKING DETAIL STYLESHEET
+   ========================================================================== */
+
+/* Layout Grid dành riêng cho Detail */
+.ops-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+}
+
+@media (min-width: 992px) {
+    .ops-detail-grid {
+        grid-template-columns: 1.2fr 1fr;
+    }
+}
+
+/* Card Summary Header Banner */
+.status-banner-card {
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.status-banner-card .booking-id-tag {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary, #111827);
+    letter-spacing: -0.5px;
+}
+
+/* Panel Containers */
+.detail-panel {
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+}
+
+.detail-panel-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+    margin-top: 0;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color, #f3f4f6);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Key-Value Information List */
+.info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.info-item .label {
+    color: var(--text-secondary, #6b7280);
+    font-weight: 500;
+}
+
+.info-item .value {
+    color: var(--text-primary, #111827);
+    font-weight: 600;
+    text-align: right;
+}
+
+/* Code Badge (dành cho Idempotency / Mã GD) */
+.code-block {
+    background-color: var(--bg-secondary, #f3f4f6);
+    color: var(--text-primary, #374151);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12.5px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    word-break: break-all;
+}
+
+/* Custom Table for Ops Detail */
+.ops-detail-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+}
+
+.ops-detail-table th {
+    background-color: var(--bg-secondary, #f9fafb);
+    color: var(--text-secondary, #4b5563);
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ops-detail-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border-color, #f3f4f6);
+    color: var(--text-primary, #1f2937);
+    vertical-align: middle;
+}
+
+.ops-detail-table tr:last-child td {
+    border-bottom: none;
+}
+
+.ops-detail-table .concert-name {
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+    display: block;
+}
+
+.ops-detail-table .concert-sub {
+    font-size: 12px;
+    color: var(--text-secondary, #6b7280);
+}
+
+/* Financial Total Section */
+.price-summary {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--border-color, #e5e7eb);
+}
+
+.price-summary .grand-total {
+    font-size: 18px;
+    color: #16a34a; /* Green success */
+    font-weight: 700;
+}

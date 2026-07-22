@@ -1,0 +1,184 @@
+/* =========================================================================
+   OPERATOR DASHBOARD SPECIFIC STYLES - REFINED UI
+   ========================================================================= */
+
+:root {
+    --primary-color: #ff758c;
+    --primary-hover: #ff5271;
+    --accent-color: #ff4b2b;
+    --bg-glass: rgba(255, 255, 255, 0.75);
+    --border-glass: rgba(255, 255, 255, 0.6);
+    --text-primary: #2c3e50;
+    --text-secondary: #7f8c8d;
+    --shadow-soft: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+/* Base Panel */
+.panel {
+    background: var(--bg-glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-glass);
+    border-radius: 24px;
+    padding: 28px;
+    box-shadow: var(--shadow-soft);
+    margin-bottom: 24px;
+}
+
+.panel h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+/* Dynamic Filter Grid Fix */
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* Chuẩn hóa 4 cột đều nhau */
+    gap: 16px 20px;
+    align-items: end;
+}
+
+@media (max-width: 1200px) {
+    .filter-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+    .filter-grid { grid-template-columns: 1fr; }
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0; /* Reset margin cũ */
+}
+
+.field label {
+    font-size: 0.825rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Đồng bộ Input & Select Input */
+.field input[type="text"],
+.field input[type="datetime-local"],
+.field select {
+    width: 100%;
+    height: 44px; /* Khóa chiều cao chuẩn */
+    padding: 0 14px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    background: #ffffff;
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
+    transition: all 0.2s ease-in-out;
+    box-sizing: border-box;
+}
+
+.field input:focus,
+.field select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(255, 117, 140, 0.15);
+}
+
+.field select:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* Filter Action Buttons */
+.filter-actions {
+    grid-column: span 2; /* Chiếm 2 cột ở dòng cuối */
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+    color: #ffffff;
+    border: none;
+    height: 44px;
+    padding: 0 24px;
+    border-radius: 22px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(255, 117, 140, 0.3);
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(255, 117, 140, 0.4);
+}
+
+.btn-ghost {
+    background: #ffffff;
+    color: var(--text-primary);
+    border: 1px solid rgba(0,0,0,0.12);
+    height: 44px;
+    padding: 0 20px;
+    border-radius: 22px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-ghost:hover {
+    background: #f8f9fa;
+    border-color: rgba(0,0,0,0.2);
+}
+
+/* Table Design Refinement */
+.ops-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 12px;
+}
+
+.ops-table th {
+    padding: 14px 16px;
+    text-align: left;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+}
+
+.ops-table td {
+    padding: 16px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    font-size: 0.9rem;
+    vertical-align: middle;
+}
+
+.ops-table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Modern Pills/Badges Style */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+.badge-published { background: #e8f5e9; color: #2e7d32; }
+.badge-draft     { background: #fff8e1; color: #f57f17; }
+.badge-cancelled { background: #ffebee; color: #c62828; }
