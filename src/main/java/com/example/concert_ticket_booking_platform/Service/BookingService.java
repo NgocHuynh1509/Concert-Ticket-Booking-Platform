@@ -31,11 +31,8 @@ import java.util.UUID;
 public class BookingService {
 
     private static final int BOOKING_HOLD_MINUTES = 15;
-    private static final int MAX_VOUCHER_RETRY = 2;
-
     private final TicketStockService ticketStockService;
-    private final VoucherRepo voucherRepository;
-    private final VoucherUsageRepo voucherUsageRepository;
+    private final VoucherService voucherService;
     private final BookingRepo bookingRepository;
     private final BookingItemRepo bookingItemRepository;
     private final PaymentRepo paymentRepository;
@@ -87,8 +84,8 @@ public class BookingService {
         BigDecimal discountAmount = BigDecimal.ZERO;
 
         if (normalizedVoucherCode != null) {
-            voucher = validateAndLoadVoucher(normalizedVoucherCode, currentUser);
-            discountAmount = applyDiscount(voucher, totalAmount);
+            voucher = voucherService.validateAndLoadVoucher(normalizedVoucherCode, currentUser);
+            discountAmount = voucherService.applyDiscount(voucher, totalAmount);
         }
 
         BigDecimal finalAmount = totalAmount.subtract(discountAmount);
@@ -134,12 +131,8 @@ public class BookingService {
         Payment savedPayment = paymentRepository.save(initialPayment);
 
         if (voucher != null) {
-            incrementVoucherUsage(voucher);
-            voucherUsageRepository.save(VoucherUsage.builder()
-                    .voucher(voucher)
-                    .user(currentUser)
-                    .booking(savedBooking)
-                    .build());
+            voucher = voucherService.incrementVoucherUsage(voucher);
+            voucherService.recordVoucherUsage(voucher, currentUser, savedBooking);
         }
 
         return mapToBookingResponse(savedBooking, List.of(savedItem), savedPayment, false);
@@ -197,65 +190,7 @@ public class BookingService {
         return raw.trim();
     }
 
-    // ---------------------------------------------------------------------
-    // Voucher
-    // ---------------------------------------------------------------------
 
-    private Voucher validateAndLoadVoucher(String code, User user) {
-        Voucher voucher = voucherRepository.findByCode(code)
-                .orElseThrow(() -> new VoucherInvalidException("Voucher không tồn tại"));
-
-        if (!Boolean.TRUE.equals(voucher.getActive())) {
-            throw new VoucherInvalidException("Voucher hiện không khả dụng");
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-        if (now.isBefore(voucher.getValidFrom()) || now.isAfter(voucher.getValidTo())) {
-            throw new VoucherInvalidException("Voucher đã hết hạn hoặc chưa tới thời gian áp dụng");
-        }
-
-        if (voucher.getUsedCount() >= voucher.getMaxUsage()) {
-            throw new VoucherInvalidException("Voucher đã hết lượt sử dụng");
-        }
-
-        long usedByThisUser = voucherUsageRepository.countByVoucherAndUser(voucher, user);
-        if (usedByThisUser >= voucher.getPerUserLimit()) {
-            throw new VoucherInvalidException("Bạn đã dùng hết số lần cho phép của voucher này");
-        }
-
-        return voucher;
-    }
-
-    private BigDecimal applyDiscount(Voucher voucher, BigDecimal totalAmount) {
-        BigDecimal discount = switch (voucher.getDiscountType()) {
-            case PERCENTAGE -> totalAmount
-                    .multiply(voucher.getDiscountValue())
-                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-            case FIXED_AMOUNT -> voucher.getDiscountValue();
-        };
-        return discount.min(totalAmount);
-    }
-
-    private void incrementVoucherUsage(Voucher voucher) {
-        int attempt = 0;
-        while (true) {
-            attempt++;
-            if (voucher.getUsedCount() >= voucher.getMaxUsage()) {
-                throw new VoucherInvalidException("Voucher đã hết lượt sử dụng");
-            }
-            voucher.setUsedCount(voucher.getUsedCount() + 1);
-            try {
-                voucherRepository.saveAndFlush(voucher);
-                return;
-            } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
-                if (attempt > MAX_VOUCHER_RETRY) {
-                    throw new VoucherInvalidException("Voucher vừa hết lượt, vui lòng thử lại");
-                }
-                voucher = voucherRepository.findById(voucher.getId())
-                        .orElseThrow(() -> new VoucherInvalidException("Voucher không tồn tại"));
-            }
-        }
-    }
 
     // ---------------------------------------------------------------------
     // Mapper Helper
@@ -302,12 +237,12 @@ public class BookingService {
      * statusFilter == null -> tab "Tất cả", không lọc.
      */
     @Transactional(readOnly = true)
-    public List<BookingListItemResponse> getMyBookings(User currentUser, BookingStatus statusFilter) {
+    public List<BookingSummaryResponse> getMyBookings(User currentUser, BookingStatus statusFilter) {
         List<Booking> bookings = (statusFilter == null)
                 ? bookingRepository.findByUser_IdOrderByCreatedAtDesc(currentUser.getId())
                 : bookingRepository.findByUser_IdAndStatusOrderByCreatedAtDesc(currentUser.getId(), statusFilter);
 
-        return bookings.stream().map(this::toListItem).toList();
+        return bookings.stream().map(this::toSummary).toList();
     }
 
     /**
@@ -315,7 +250,7 @@ public class BookingService {
      * 404 nếu booking không tồn tại, 403 nếu không phải chủ booking (theo đúng đặc tả API).
      */
     @Transactional(readOnly = true)
-    public BookingDetailResponse getBookingDetail(User currentUser, Long bookingId) {
+    public BookingResponse getBookingDetail(User currentUser, Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy booking id=" + bookingId));
 
@@ -323,60 +258,28 @@ public class BookingService {
             throw new ForbiddenException("Bạn không có quyền xem booking này");
         }
 
-        return toDetail(booking);
+        List<BookingItem> items = bookingItemRepository.findByBookingId(booking.getId());
+        Payment payment = paymentRepository.findByBookingId(booking.getId()).orElse(null);
+        return mapToBookingResponse(booking, items, payment, false);
     }
 
-    private BookingListItemResponse toListItem(Booking booking) {
-        // Hiện tại 1 booking chỉ chứa vé của đúng 1 concert (POST /bookings chỉ nhận
-        // 1 ticketCategoryId/lần), nên lấy concert đại diện từ item đầu tiên là an toàn.
-        BookingItem firstItem = booking.getItems().isEmpty() ? null : booking.getItems().get(0);
+    private BookingSummaryResponse toSummary(Booking booking) {
+        var items = bookingItemRepository.findByBookingId(booking.getId());
+
+        BookingItem firstItem = items.isEmpty() ? null : items.get(0);
         TicketCategory tc = firstItem != null ? firstItem.getTicketCategory() : null;
 
-        int totalTickets = booking.getItems().stream()
-                .mapToInt(BookingItem::getQuantity)
-                .sum();
+        int ticketCount = items.stream().mapToInt(BookingItem::getQuantity).sum();
 
-        return BookingListItemResponse.builder()
-                .bookingId(booking.getId())
+        return BookingSummaryResponse.builder()
+                .id(booking.getId())
                 .status(booking.getStatus())
                 .concertName(tc != null ? tc.getConcert().getName() : null)
                 .concertPosterUrl(tc != null ? tc.getConcert().getPosterUrl() : null)
-                .totalTicketCount(totalTickets)
+                .ticketCount(ticketCount)
                 .finalAmount(booking.getFinalAmount())
                 .expiresAt(booking.getExpiresAt())
                 .createdAt(booking.getCreatedAt())
                 .build();
     }
-
-    private BookingDetailResponse toDetail(Booking booking) {
-        BookingItem firstItem = booking.getItems().isEmpty() ? null : booking.getItems().get(0);
-        TicketCategory tc = firstItem != null ? firstItem.getTicketCategory() : null;
-
-        List<BookingItemResponse> items = booking.getItems().stream()
-                .map(it -> BookingItemResponse.builder()
-                        .ticketCategoryId(it.getTicketCategory().getId())
-                        .ticketCategoryName(it.getTicketCategory().getName())
-                        .quantity(it.getQuantity())
-                        .unitPrice(it.getUnitPrice())
-                        .subtotal(it.getSubtotal())
-                        .build())
-                .toList();
-
-        return BookingDetailResponse.builder()
-                .bookingId(booking.getId())
-                .status(booking.getStatus())
-                .concertName(tc != null ? tc.getConcert().getName() : null)
-                .concertVenue(tc != null ? tc.getConcert().getVenue() : null)
-                .concertEventDate(tc != null ? tc.getConcert().getEventDate() : null)
-                .concertPosterUrl(tc != null ? tc.getConcert().getPosterUrl() : null)
-                .voucherCode(booking.getVoucher() != null ? booking.getVoucher().getCode() : null)
-                .totalAmount(booking.getTotalAmount())
-                .discountAmount(booking.getDiscountAmount())
-                .finalAmount(booking.getFinalAmount())
-                .expiresAt(booking.getExpiresAt())
-                .createdAt(booking.getCreatedAt())
-                .items(items)
-                .build();
-    }
-
 }

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -60,6 +61,7 @@
         }
     </style>
 </head>
+
 <body>
 
 <div class="header">
@@ -71,7 +73,8 @@
         <!-- Nút Vé của tôi với Icon xịn xò -->
         <button id="my-bookings-btn" onclick="location.href='/my-bookings'" class="btn-my-tickets">
             <svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M5.25 3A2.25 2.25 0 0 0 3 5.25v.5c0 .414.336.75.75.75a1.25 1.25 0 0 1 0 2.5c-.414 0-.75.336-.75.75v.5A2.25 2.25 0 0 0 5.25 13h5.5A2.25 2.25 0 0 0 13 10.75v-.5c0-.414-.336-.75-.75-.75a1.25 1.25 0 0 1 0-2.5c.414 0 .75-.336.75-.75v-.5A2.25 2.25 0 0 0 10.75 3h-5.5zM4 5.25a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 .75.75v.025a2.25 2.25 0 0 0 0 4.45v.025a.75.75 0 0 1-.75.75h-6.5a.75.75 0 0 1-.75-.75v-.025a2.25 2.25 0 0 0 0-4.45V5.25z"/>
+                <path
+                        d="M5.25 3A2.25 2.25 0 0 0 3 5.25v.5c0 .414.336.75.75.75a1.25 1.25 0 0 1 0 2.5c-.414 0-.75.336-.75.75v.5A2.25 2.25 0 0 0 5.25 13h5.5A2.25 2.25 0 0 0 13 10.75v-.5c0-.414-.336-.75-.75-.75a1.25 1.25 0 0 1 0-2.5c.414 0 .75-.336.75-.75v-.5A2.25 2.25 0 0 0 10.75 3h-5.5zM4 5.25a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 .75.75v.025a2.25 2.25 0 0 0 0 4.45v.025a.75.75 0 0 1-.75.75h-6.5a.75.75 0 0 1-.75-.75v-.025a2.25 2.25 0 0 0 0-4.45V5.25z" />
             </svg>
             <span>Vé của tôi</span>
         </button>
@@ -83,6 +86,22 @@
 <div class="home-container">
     <h2 style="color: var(--text-primary); margin-bottom: 10px;">Upcoming Concerts</h2>
     <p style="color: var(--text-secondary);">Khám phá những sự kiện âm nhạc tuyệt vời nhất.</p>
+
+    <div class="filter-section">
+        <input type="text" id="search-name" class="filter-input" placeholder="Tên concert...">
+        <input type="text" id="search-venue" class="filter-input" placeholder="Địa điểm...">
+        <input type="date" id="search-date" class="filter-input" style="color-scheme: dark;">
+
+        <select id="search-status" class="filter-input">
+            <option value="" style="color: black;">Tất cả trạng thái</option>
+            <option value="PUBLISHED" style="color: black;">Mở bán (PUBLISHED)</option>
+            <option value="COMPLETED" style="color: black;">Đã kết thúc (COMPLETED)</option>
+            <option value="CANCELLED" style="color: black;">Đã hủy (CANCELLED)</option>
+        </select>
+
+        <button id="btn-search" class="btn-primary" style="padding: 10px 24px;">Tìm kiếm</button>
+        <button id="btn-reset" class="btn-reset" title="Xóa bộ lọc">↺ Làm mới</button>
+    </div>
 
     <div id="concert-grid" class="concert-grid">
         <!-- Concert Cards will be injected here by JS -->
@@ -116,8 +135,36 @@
         });
     }
 
+    let allConcerts = [];
+
     // Luôn tải danh sách concert dù có đăng nhập hay không
     loadConcerts();
+
+    document.getElementById('btn-search').addEventListener('click', () => {
+        applyFilters();
+    });
+
+    // Bắt sự kiện nhấn phím "Enter" ở bất kỳ ô input nào để tự động tìm kiếm
+    const filterInputs = document.querySelectorAll('.filter-input');
+    filterInputs.forEach(input => {
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                applyFilters();
+            }
+        });
+    });
+
+    // Logic cho nút "Làm mới" (Reset Filter)
+    document.getElementById('btn-reset').addEventListener('click', () => {
+        // Xóa trắng các ô nhập liệu
+        document.getElementById('search-name').value = '';
+        document.getElementById('search-venue').value = '';
+        document.getElementById('search-date').value = '';
+        document.getElementById('search-status').value = '';
+
+        // Gọi lại hàm lọc để hiển thị toàn bộ danh sách ban đầu
+        applyFilters();
+    });
 
     // Fetch Concerts
     async function loadConcerts() {
@@ -135,7 +182,8 @@
 
             if (response.ok) {
                 const concerts = await response.json();
-                renderConcerts(concerts);
+                allConcerts = concerts;
+                applyFilters();
             } else if (response.status === 401 || response.status === 403) {
                 // Token expired or invalid
                 localStorage.removeItem('token');
@@ -146,6 +194,30 @@
         } catch (error) {
             grid.innerHTML = '<p>Lỗi kết nối máy chủ.</p>';
         }
+    }
+
+    function applyFilters() {
+        const searchName = document.getElementById('search-name').value.toLowerCase();
+        const searchVenue = document.getElementById('search-venue').value.toLowerCase();
+        const searchDate = document.getElementById('search-date').value;
+        const searchStatus = document.getElementById('search-status').value;
+
+        let filtered = allConcerts
+            .filter(c => c.status !== 'DRAFT')
+            .filter(c => !searchName || c.name.toLowerCase().includes(searchName))
+            .filter(c => !searchVenue || c.venue.toLowerCase().includes(searchVenue))
+            .filter(c => !searchStatus || c.status === searchStatus)
+            .filter(c => {
+                if (!searchDate) return true;
+                const d = new Date(c.eventDate);
+                const dateString = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0');
+                return dateString === searchDate;
+            });
+
+        // Sort từ gần nhất đến lâu nhất (dựa theo eventDate giảm dần - mới nhất xếp trước, cũ nhất xếp sau)
+        filtered.sort((a, b) => new Date(b.eventDate) - new Date(a.eventDate));
+
+        renderConcerts(filtered);
     }
 
     function renderConcerts(concerts) {
@@ -206,4 +278,5 @@
 </script>
 
 </body>
+
 </html>
