@@ -53,4 +53,9 @@ public class WebController {
         return "booking-detail";
     }
 
+    @GetMapping("/ops/dashboard")
+    public String opsDashboard() {
+        return "ops-dashboard";
+    }
+
 }

@@ -49,11 +49,32 @@
             });
 
             if (response.ok) {
+
                 const data = await response.json();
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('username', data.username);
-                window.location.href = '/home';
-            } else {
+
+                localStorage.setItem("token", data.token);
+                localStorage.setItem("username", data.username);
+                localStorage.setItem("role", data.role);
+                localStorage.setItem("userId", data.userId);
+
+                switch (data.role) {
+
+                    case "OPERATOR":
+                        window.location.href = "/ops/dashboard";
+                        break;
+
+                    case "ADMIN":
+                        window.location.href = "/admin/dashboard";
+                        break;
+
+                    case "CUSTOMER":
+                    default:
+                        window.location.href = "/home";
+                        break;
+                }
+
+            }
+             else {
                 errorDiv.textContent = 'Sai tên đăng nhập hoặc mật khẩu';
                 errorDiv.style.display = 'block';
             }

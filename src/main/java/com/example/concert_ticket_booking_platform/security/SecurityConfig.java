@@ -81,7 +81,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/", "/home", "/login", "/register", "/*.html", "/css/**", "/js/**", "/assets/**", "/favicon.ico",
                                 "/h2-console/**", "/concert/**", "/checkout", "/payment", "/booking-success",
-                                "/my-bookings", "/booking/**"
+                                "/my-bookings", "/booking/**","/ops/**"
                         ).permitAll()
 
                         // 2. Auth & GET Concerts: Công khai
@@ -111,6 +111,7 @@ public class SecurityConfig {
                         // Danh sách voucher đang áp dụng được — checkout.html gọi endpoint này để
                         // đổ vào dropdown. Cho phép mọi role đã đăng nhập xem, giống ticket-categories.
                         .requestMatchers(HttpMethod.GET, "/api/vouchers/available").hasAnyRole("CUSTOMER", "OPERATOR", "ADMIN")
+                        .requestMatchers("/api/ops/**").hasAnyRole("OPERATOR", "ADMIN")
 
                         // các request còn lại yêu cầu authenticated
                         .anyRequest().authenticated()
