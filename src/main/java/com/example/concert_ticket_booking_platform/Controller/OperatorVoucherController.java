@@ -2,6 +2,7 @@ package com.example.concert_ticket_booking_platform.Controller;
 
 import com.example.concert_ticket_booking_platform.dto.voucher.VoucherCreateRequest;
 import com.example.concert_ticket_booking_platform.dto.voucher.VoucherResponse;
+import com.example.concert_ticket_booking_platform.dto.voucher.VoucherUsageResponse;
 import com.example.concert_ticket_booking_platform.exception.VoucherException;
 import com.example.concert_ticket_booking_platform.Service.IVoucherService;
 import jakarta.validation.Valid;
@@ -13,6 +14,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("api/ops/vouchers")
@@ -49,5 +52,10 @@ public class OperatorVoucherController {
     @ExceptionHandler(VoucherException.class)
     public ResponseEntity<String> handleVoucherException(VoucherException ex) {
         return ResponseEntity.status(ex.getStatus()).body(ex.getMessage());
+    }
+
+    @GetMapping("/{id}/usages")
+    public ResponseEntity<List<VoucherUsageResponse>> getUsages(@PathVariable Long id) {
+        return ResponseEntity.ok(voucherService.getVoucherUsages(id));
     }
 }

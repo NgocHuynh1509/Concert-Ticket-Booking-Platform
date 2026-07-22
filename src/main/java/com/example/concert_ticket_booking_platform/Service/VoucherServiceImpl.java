@@ -1,9 +1,11 @@
 package com.example.concert_ticket_booking_platform.Service;
 
+import com.example.concert_ticket_booking_platform.Repository.VoucherUsageRepo;
 import com.example.concert_ticket_booking_platform.dto.voucher.VoucherCreateRequest;
 import com.example.concert_ticket_booking_platform.dto.voucher.VoucherResponse;
 import com.example.concert_ticket_booking_platform.Entity.Voucher;
 import com.example.concert_ticket_booking_platform.Entity.enums.DiscountType;
+import com.example.concert_ticket_booking_platform.dto.voucher.VoucherUsageResponse;
 import com.example.concert_ticket_booking_platform.exception.VoucherException;
 import com.example.concert_ticket_booking_platform.Repository.VoucherRepo;
 import com.example.concert_ticket_booking_platform.Service.VoucherService;
@@ -15,12 +17,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class VoucherServiceImpl implements IVoucherService {
 
     private final VoucherRepo voucherRepository;
+    private final VoucherUsageRepo voucherUsageRepos;
 
     @Override
     @Transactional(readOnly = true)
@@ -109,5 +113,22 @@ public class VoucherServiceImpl implements IVoucherService {
                 .validTo(v.getValidTo())
                 .active(v.getActive())
                 .build();
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public List<VoucherUsageResponse> getVoucherUsages(Long voucherId) {
+        if (!voucherRepository.existsById(voucherId)) {
+            throw new VoucherException("Không tìm thấy voucher id=" + voucherId, HttpStatus.NOT_FOUND);
+        }
+
+        return voucherUsageRepos.findByVoucherIdOrderByCreatedAtDesc(voucherId)
+                .stream()
+                .map(vu -> VoucherUsageResponse.builder()
+                        .username(vu.getUser().getUsername())
+                        .email(vu.getUser().getEmail())
+                        .usedAt(vu.getCreatedAt())
+                        .bookingId(vu.getBooking().getId())
+                        .build())
+                .toList();
     }
 }

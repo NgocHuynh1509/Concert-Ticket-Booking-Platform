@@ -8,6 +8,122 @@
     <link rel="stylesheet" href="/css/styles.css">
     <!-- Thêm dashboard.css riêng -->
     <link rel="stylesheet" href="/css/dashboard.css">
+
+    <style>
+        /* =========================================================================
+           STYLING VOUCHER FORM & INPUTS
+           ========================================================================= */
+        #create-form .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+
+        #create-form label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary, #555);
+        }
+
+        /* Tùy chỉnh đồng bộ cho input, select trong form */
+        #create-form input[type="text"],
+        #create-form input[type="number"],
+        #create-form input[type="datetime-local"],
+        #create-form select {
+            width: 100%;
+            height: 42px;
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background-color: #fff;
+            font-size: 14px;
+            color: #333;
+            outline: none;
+            box-sizing: border-box;
+            transition: all 0.2s ease-in-out;
+            appearance: none; /* Xóa style mặc định OS */
+            -webkit-appearance: none;
+            -moz-appearance: none;
+        }
+
+        /* Mũi tên custom cho thẻ select */
+        #create-form select {
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%20666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+            padding-right: 36px;
+            cursor: pointer;
+        }
+
+        /* Effect khi người dùng click vào ô input/select */
+        #create-form input:focus,
+        #create-form select:focus {
+            border-color: var(--accent-color, #ff4b2b);
+            box-shadow: 0 0 0 3px rgba(255, 75, 43, 0.15);
+        }
+
+        /* Hover hiệu ứng nhẹ */
+        #create-form input:hover,
+        #create-form select:hover {
+            border-color: #cbd5e1;
+        }
+
+        /* Thống nhất nút bấm tạo voucher */
+        #create-submit-btn {
+            height: 42px;
+            font-weight: 600;
+            margin-top: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        /* =========================================================================
+           MODAL: DANH SÁCH SỬ DỤNG VOUCHER
+           ========================================================================= */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 40px 16px;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .modal-box {
+            background: var(--bg-primary, #fff);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 560px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            color: var(--text-secondary, #666);
+            padding: 4px 8px;
+        }
+        .icon-btn:hover {
+            color: var(--text-primary, #111);
+        }
+
+        #usage-modal-body a {
+            color: var(--accent-color, #ff4b2b);
+            text-decoration: none;
+        }
+        #usage-modal-body a:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
 
@@ -34,7 +150,7 @@
 
             <!-- Cột trái: Form tạo voucher -->
             <div class="panel">
-                <h2 style="margin-bottom:6px;">Tạo voucher mới</h2>
+                <h2 style="margin-bottom:16px;">Tạo voucher mới</h2>
 
                 <div id="create-error-box"></div>
                 <div id="create-success-box"></div>
@@ -47,17 +163,17 @@
                     <div class="field">
                         <label for="v-discount-type">Loại giảm giá</label>
                         <select id="v-discount-type">
-                            <option value="PERCENTAGE">PERCENTAGE</option>
-                            <option value="FIXED_AMOUNT">FIXED_AMOUNT</option>
+                            <option value="PERCENTAGE">Phần trăm (%)</option>
+                            <option value="FIXED_AMOUNT">Số tiền cố định (VNĐ)</option>
                         </select>
                     </div>
                     <div class="field">
                         <label for="v-discount-value">Giá trị giảm</label>
-                        <input type="number" id="v-discount-value" min="0.01" step="0.01" required>
+                        <input type="number" id="v-discount-value" min="0.01" step="0.01" placeholder="VD: 10 hoặc 50000" required>
                     </div>
                     <div class="field">
                         <label for="v-max-usage">Số lượt sử dụng tối đa</label>
-                        <input type="number" id="v-max-usage" min="1" step="1" required>
+                        <input type="number" id="v-max-usage" min="1" step="1" placeholder="VD: 100" required>
                     </div>
                     <div class="field">
                         <label for="v-per-user-limit">Giới hạn lượt / user</label>
@@ -81,6 +197,7 @@
                 <h2 style="margin-bottom:6px;">Danh sách voucher</h2>
                 <p style="color: var(--text-secondary); font-size:13.5px; margin-bottom:16px;">
                     <code>PATCH /api/ops/vouchers/{id}/deactivate</code> — Deactivate không thể hoàn tác (voucher sẽ ngưng áp dụng được cho booking mới).
+                    Bấm vào số lượt đã dùng để xem chi tiết ai đã dùng.
                 </p>
                 <div id="status-error-box"></div>
                 <div id="voucher-table-wrap">
@@ -88,6 +205,19 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODAL: DANH SÁCH SỬ DỤNG VOUCHER ================= -->
+<div id="usage-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <h2 id="usage-modal-title" style="margin:0;">Danh sách sử dụng voucher</h2>
+            <button class="icon-btn" id="close-usage-modal-btn">✕</button>
+        </div>
+        <div id="usage-modal-body">
+            <div class="empty-state">Đang tải...</div>
         </div>
     </div>
 </div>
@@ -306,6 +436,9 @@
 
         const rows = vouchers.map(v => {
             const statusText = v.active ? 'ACTIVE' : 'INACTIVE';
+            const usageCell = v.usedCount > 0
+                ? `<a href="#" onclick="openUsageModal(${v.id}, '${escapeHtml(v.code)}'); return false;">${v.usedCount} / ${v.maxUsage}</a>`
+                : `${v.usedCount} / ${v.maxUsage}`;
 
             return `
             <tr>
@@ -314,7 +447,7 @@
                     <span style="color: var(--text-secondary); font-size:12px;">#${v.id} · ${escapeHtml(v.discountType)} · ${v.discountValue}</span>
                 </td>
                 <td><span class="badge ${badgeClass[v.active]}">${statusText}</span></td>
-                <td>${v.usedCount} / ${v.maxUsage}</td>
+                <td>${usageCell}</td>
                 <td style="font-size:12.5px; color: var(--text-secondary);">
                     ${formatDateTime(v.validFrom)}<br>→ ${formatDateTime(v.validTo)}
                 </td>
@@ -358,6 +491,63 @@
             buttonEl.innerText = originalText;
         }
     }
+
+    // =========================================================================
+    // PART 3: MODAL DANH SÁCH SỬ DỤNG VOUCHER
+    // =========================================================================
+
+    async function openUsageModal(voucherId, voucherCode) {
+        const modal = document.getElementById('usage-modal');
+        const title = document.getElementById('usage-modal-title');
+        const body = document.getElementById('usage-modal-body');
+
+        title.textContent = `Đã sử dụng voucher "${voucherCode}"`;
+        body.innerHTML = '<div class="empty-state">Đang tải...</div>';
+        modal.style.display = 'flex';
+
+        try {
+            const usages = await apiFetch(`/api/ops/vouchers/${voucherId}/usages`);
+            renderUsageList(usages);
+        } catch (err) {
+            body.innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`;
+        }
+    }
+
+    function renderUsageList(usages) {
+        const body = document.getElementById('usage-modal-body');
+
+        if (!usages || !usages.length) {
+            body.innerHTML = '<div class="empty-state">Chưa có ai sử dụng voucher này.</div>';
+            return;
+        }
+
+        const rows = usages.map(u => `
+            <tr>
+                <td>${escapeHtml(u.username)}</td>
+                <td>${escapeHtml(u.email)}</td>
+                <td style="font-size:12.5px; color: var(--text-secondary);">${formatDateTime(u.usedAt)}</td>
+                <td><a href="/ops/bookings/${u.bookingId}" target="_blank">#${u.bookingId}</a></td>
+            </tr>
+        `).join('');
+
+        body.innerHTML = `
+            <table class="ops-table">
+                <thead>
+                    <tr><th>Username</th><th>Email</th><th>Ngày dùng</th><th>Booking</th></tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        `;
+    }
+
+    document.getElementById('close-usage-modal-btn').addEventListener('click', () => {
+        document.getElementById('usage-modal').style.display = 'none';
+    });
+    document.getElementById('usage-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'usage-modal') {
+            document.getElementById('usage-modal').style.display = 'none';
+        }
+    });
 
     if (checkAccess()) {
         loadVoucherTable();
