@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Chi tiết vé - ConcertBooking</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/concert-detail.css">
+    <link rel="stylesheet" href="/css/bookings.css">
+</head>
+<body>
+<div class="header">
+    <h1 onclick="location.href='/'" style="cursor:pointer;">ConcertBooking</h1>
+    <div style="display:flex;align-items:center;gap:15px;">
+        <span id="user-greeting"></span>
+        <button id="logout-btn" class="btn-primary">Đăng xuất</button>
+    </div>
+</div>
+
+<div class="detail-container">
+    <a href="/my-bookings" class="back-link">&larr; Quay lại Vé của tôi</a>
+
+    <div class="detail-banner">
+        <img id="poster" class="detail-poster">
+        <div class="detail-info">
+            <h1 id="concertName"></h1>
+            <div class="detail-item"><strong>📍 Địa điểm:</strong> <span id="venue"></span></div>
+            <div class="detail-item"><strong>🗓 Thời gian:</strong> <span id="date"></span></div>
+            <div class="detail-item"><strong>🎫 Trạng thái booking:</strong> <span id="status"></span></div>
+            <div class="detail-item" id="expiresRow" style="display:none;">
+                <strong>⏳ Hết hạn giữ chỗ:</strong> <span id="expiresAt"></span>
+            </div>
+            <div class="detail-item" id="voucherRow" style="display:none;">
+                <strong>🏷 Voucher áp dụng:</strong> <span id="voucherCode"></span>
+            </div>
+        </div>
+    </div>
+
+    <h2>Chi tiết vé</h2>
+    <div id="items" class="ticket-list"></div>
+
+    <div class="glass-panel summary-panel">
+        <div class="summary-row"><span>Tạm tính</span><span id="totalAmount"></span></div>
+        <div class="summary-row"><span>Giảm giá</span><span id="discountAmount"></span></div>
+        <div class="summary-row summary-final"><span>Thành tiền</span><span id="finalAmount"></span></div>
+    </div>
+    <div id="paymentAction"
+         style="display:none;margin-top:25px;text-align:right;">
+
+        <button id="payAgainBtn"
+                class="btn-primary"
+                style="
+                padding:12px 24px;
+                font-size:15px;
+                font-weight:bold;
+            ">
+            💳 Thanh toán ngay
+        </button>
+
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem("token");
+    const username = localStorage.getItem("username");
+
+    if (!token) {
+        location.href = "/login";
+    }
+
+    document.getElementById("user-greeting").innerHTML = "Hi, " + username;
+    document.getElementById("logout-btn").onclick = () => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("username");
+        location.href = "/login";
+    };
+
+    const id = window.location.pathname.split("/").pop();
+    loadBookingDetail();
+
+    function statusLabel(status) {
+        const map = {
+            PENDING_PAYMENT: "Đang chờ thanh toán",
+            PAID: "Đã thanh toán",
+            CANCELLED: "Đã huỷ",
+            FAILED: "Thất bại",
+            EXPIRED: "Đã hết hạn"
+        };
+        return map[status] || status;
+    }
+
+    async function loadBookingDetail() {
+        try {
+            const response = await fetch("/api/bookings/" + id, {
+                headers: { "Authorization": "Bearer " + token },
+                cache: "no-store"
+            });
+
+            if (response.status === 401) {
+                localStorage.removeItem("token");
+                location.href = "/login";
+                return;
+            }
+            if (response.status === 403) {
+                alert("Bạn không có quyền xem booking này");
+                location.href = "/my-bookings";
+                return;
+            }
+            if (response.status === 404) {
+                alert("Không tìm thấy booking");
+                location.href = "/my-bookings";
+                return;
+            }
+            if (!response.ok) {
+                alert("Không tải được booking");
+                return;
+            }
+
+            const b = await response.json();
+
+            // Hiện nút thanh toán lại nếu booking còn chờ thanh toán
+            if (b.status === "PENDING_PAYMENT") {
+
+                document.getElementById("paymentAction").style.display = "block";
+
+                document.getElementById("payAgainBtn").onclick = () => {
+                    location.href = "/payment?id=" + b.id;
+                };
+
+            }
+
+
+            const poster = document.getElementById("poster");
+            poster.src = (b.concertPosterUrl && b.concertPosterUrl.trim() !== "")
+                ? b.concertPosterUrl : "/images/default-concert.jpg";
+            poster.onerror = function () { this.src = "/images/default-concert.jpg"; };
+
+            document.getElementById("concertName").innerHTML = b.concertName || "";
+            document.getElementById("venue").innerHTML = b.concertVenue || "";
+            document.getElementById("date").innerHTML = b.concertEventDate
+                ? new Date(b.concertEventDate).toLocaleString("vi-VN") : "";
+            document.getElementById("status").innerHTML = statusLabel(b.status);
+
+            if (b.status === "PENDING_PAYMENT" && b.expiresAt) {
+                document.getElementById("expiresRow").style.display = "flex";
+                document.getElementById("expiresAt").innerHTML = new Date(b.expiresAt).toLocaleString("vi-VN");
+            }
+
+            if (b.voucherCode) {
+                document.getElementById("voucherRow").style.display = "flex";
+                document.getElementById("voucherCode").innerHTML = b.voucherCode;
+            }
+
+            const itemsDiv = document.getElementById("items");
+            itemsDiv.innerHTML = "";
+            (b.items || []).forEach(it => {
+                itemsDiv.innerHTML += `
+                <div class="glass-panel ticket-card">
+                    <div class="ticket-left">
+                        <h3>${it.ticketCategoryName}</h3>
+                        <p>💰 ${Number(it.unitPrice).toLocaleString("vi-VN")} VNĐ x ${it.quantity}</p>
+                    </div>
+                    <div>${Number(it.subtotal).toLocaleString("vi-VN")} VNĐ</div>
+                </div>`;
+            });
+
+            document.getElementById("totalAmount").innerHTML = Number(b.totalAmount).toLocaleString("vi-VN") + " VNĐ";
+            document.getElementById("discountAmount").innerHTML = "-" + Number(b.discountAmount).toLocaleString("vi-VN") + " VNĐ";
+            document.getElementById("finalAmount").innerHTML = Number(b.finalAmount).toLocaleString("vi-VN") + " VNĐ";
+        } catch (e) {
+            console.log(e);
+            alert("Lỗi kết nối máy chủ.");
+        }
+    }
+</script>
+</body>
+</html>

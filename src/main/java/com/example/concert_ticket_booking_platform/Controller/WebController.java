@@ -31,8 +31,26 @@ public class WebController {
         return "checkout"; // Trả về checkout.html
     }
 
+    // MỚI: trang mock thanh toán (2 nút thành công/thất bại) — trước đó payment.html
+    // chưa có route nào trả về nên truy cập /payment sẽ bị 404.
+    @GetMapping("/payment")
+    public String paymentPage() {
+        return "payment"; // Trả về payment.html
+    }
+
     @GetMapping("/booking-success")
     public String bookingSuccessPage() {
         return "booking-success"; // Trả về booking-success.html
     }
+
+    @GetMapping("/my-bookings")
+    public String myBookings() {
+        return "my-bookings";
+    }
+
+    @GetMapping("/booking/{id}")
+    public String bookingDetail() {
+        return "booking-detail";
+    }
+
 }

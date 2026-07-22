@@ -29,6 +29,15 @@ import java.util.List;
  *
  * Stateless JWT: khong dung session (SessionCreationPolicy.STATELESS), moi request tu mang JWT
  * trong header Authorization.
+ *
+ * LƯU Ý QUAN TRỌNG về page-route (không phải API):
+ * Token JWT được lưu ở localStorage phía client và chỉ được đính kèm khi JS chủ động gọi
+ * fetch()/XHR — trình duyệt KHÔNG tự gắn nó vào request điều hướng trang thông thường
+ * (vd click <a href="/my-bookings">, gõ URL, load lại trang...). Vì vậy mọi route chỉ có
+ * nhiệm vụ "trả về file HTML" (được ViewController forward, ví dụ /concert/{id},
+ * /my-bookings, /booking/{id}) đều PHẢI permitAll ở đây, bất kể nội dung trang đó có yêu
+ * cầu đăng nhập hay không — việc chặn truy cập dữ liệu thật sự nằm ở tầng API
+ * (/api/bookings/**, /api/holds/**...), không nằm ở tầng route trang.
  */
 @Configuration
 @EnableWebSecurity
@@ -65,10 +74,14 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // 1. Static resources + h2-console: Công khai
+                        // 1. Static resources + page routes (chỉ trả HTML, xem javadoc ở trên): Công khai
+                        //    FIX: thêm "/my-bookings" và "/booking/**" — 2 route bị thiếu, gây lỗi
+                        //    401 ngay khi vừa điều hướng trang (trước khi JS kịp gắn Bearer token).
+                        //    FIX: bỏ "/favicon.ico" bị khai trùng 2 lần trong bản gốc.
                         .requestMatchers(
                                 "/", "/home", "/login", "/register", "/*.html", "/css/**", "/js/**", "/assets/**", "/favicon.ico",
-                                "/h2-console/**", "/concert/**","/checkout","/booking-success","/favicon.ico"
+                                "/h2-console/**", "/concert/**", "/checkout", "/payment", "/booking-success",
+                                "/my-bookings", "/booking/**"
                         ).permitAll()
 
                         // 2. Auth & GET Concerts: Công khai
@@ -81,8 +94,23 @@ public class SecurityConfig {
                         // Chỉ người dùng có Role CUSTOMER mới được thao tác đặt vé
                         .requestMatchers("/api/bookings/**").hasRole("CUSTOMER")
 
+                        // Hold (giữ chỗ tạm) là hành động của customer, cùng nhóm quyền với booking
+                        .requestMatchers("/api/holds/**").hasRole("CUSTOMER")
+
+                        // Xác nhận kết quả thanh toán — chỉ chủ booking (customer) mới gọi được.
+                        // PaymentService đã tự kiểm tra thêm booking.user.id == currentUser.id ở tầng service,
+                        // đây chỉ là lớp chặn thô ở URL (coarse-grained) theo đúng quy ước của file này.
+                        .requestMatchers("/api/payments/**").hasRole("CUSTOMER")
+
                         // Nếu bạn có API lấy thông tin ticket category cho trang checkout:
+                        // LƯU Ý: enum UserRole hiện chỉ có CUSTOMER/OPERATOR — "ADMIN" ở đây sẽ
+                        // KHÔNG BAO GIỜ match cho tới khi bạn thêm ADMIN vào UserRole. Không xoá vì
+                        // rõ ràng là chủ đích của bạn, nhưng cần thêm ADMIN vào enum để có tác dụng.
                         .requestMatchers(HttpMethod.GET, "/api/ticket-categories/**").hasAnyRole("CUSTOMER", "OPERATOR", "ADMIN")
+
+                        // Danh sách voucher đang áp dụng được — checkout.html gọi endpoint này để
+                        // đổ vào dropdown. Cho phép mọi role đã đăng nhập xem, giống ticket-categories.
+                        .requestMatchers(HttpMethod.GET, "/api/vouchers/available").hasAnyRole("CUSTOMER", "OPERATOR", "ADMIN")
 
                         // các request còn lại yêu cầu authenticated
                         .anyRequest().authenticated()

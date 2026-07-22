@@ -5,20 +5,17 @@ import com.example.concert_ticket_booking_platform.Entity.enums.BookingStatus;
 import com.example.concert_ticket_booking_platform.Entity.enums.PaymentMethod;
 import com.example.concert_ticket_booking_platform.Entity.enums.PaymentStatus;
 import com.example.concert_ticket_booking_platform.Repository.*;
-import com.example.concert_ticket_booking_platform.dto.booking.BookingItemResponse;
-import com.example.concert_ticket_booking_platform.dto.booking.BookingResponse;
-import com.example.concert_ticket_booking_platform.dto.booking.CreateBookingRequest;
-import com.example.concert_ticket_booking_platform.dto.booking.PaymentResponse;
+import com.example.concert_ticket_booking_platform.dto.booking.*;
+import com.example.concert_ticket_booking_platform.exception.ResourceNotFoundException;
+import com.example.concert_ticket_booking_platform.exception.booking.ForbiddenException;
 import com.example.concert_ticket_booking_platform.exception.booking.IdempotencyConflictException;
-import com.example.concert_ticket_booking_platform.exception.booking.InsufficientTicketException;
 import com.example.concert_ticket_booking_platform.exception.booking.VoucherInvalidException;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.OptimisticLockException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -34,15 +31,18 @@ import java.util.UUID;
 public class BookingService {
 
     private static final int BOOKING_HOLD_MINUTES = 15;
-    private static final int MAX_STOCK_RETRY = 2; // retry thêm tối đa 2 lần khi optimistic lock conflict
+    private static final int MAX_VOUCHER_RETRY = 2;
 
-    private final TicketCategoryRepo ticketCategoryRepository;
+    private final TicketStockService ticketStockService;
     private final VoucherRepo voucherRepository;
     private final VoucherUsageRepo voucherUsageRepository;
     private final BookingRepo bookingRepository;
     private final BookingItemRepo bookingItemRepository;
     private final PaymentRepo paymentRepository;
-    private final EntityManager entityManager;
+
+    // ---------------------------------------------------------------------
+    // Đặt vé trực tiếp (giữ nguyên hành vi cũ: reserve stock + tạo booking trong 1 bước)
+    // ---------------------------------------------------------------------
 
     @Transactional
     public BookingResponse createBooking(User currentUser, String idempotencyKey, CreateBookingRequest request) {
@@ -55,13 +55,35 @@ public class BookingService {
             return handleExistingIdempotencyKey(existingOpt.get(), request, normalizedVoucherCode);
         }
 
-        // 2) Trừ kho vé (optimistic lock + retry)
-        TicketCategory ticketCategory = reserveStock(request.getTicketCategoryId(), request.getQuantity());
+        // 2) Trừ kho vé (optimistic lock + retry — nay dùng chung TicketStockService)
+        TicketCategory ticketCategory = ticketStockService.reserveStock(
+                request.getTicketCategoryId(), request.getQuantity());
 
-        // 3) Áp voucher (nếu có)
+        // 3) Từ đây trở đi, logic giống hệt confirmHold từ HoldService — dùng chung 1 method
+        try {
+            return buildBookingFromReservedStock(
+                    currentUser, ticketCategory, request.getQuantity(),
+                    idempotencyKey, normalizedVoucherCode);
+        } catch (RuntimeException e) {
+            // Nếu bước tạo Booking/Voucher thất bại SAU KHI đã trừ kho ở bước 2,
+            // phải hoàn lại kho — nếu không vé sẽ bị "bốc hơi" khỏi hệ thống.
+            ticketStockService.releaseStock(ticketCategory.getId(), request.getQuantity());
+            throw e;
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // Dùng chung bởi createBooking() (đặt trực tiếp) và HoldService.confirmHold()
+    // (đặt từ 1 hold đã trừ kho từ trước — nên KHÔNG gọi reserveStock ở đây nữa)
+    // ---------------------------------------------------------------------
+
+    @Transactional
+    public BookingResponse buildBookingFromReservedStock(
+            User currentUser, TicketCategory ticketCategory, int quantity,
+            String idempotencyKey, String normalizedVoucherCode) {
+
         Voucher voucher = null;
-        BigDecimal totalAmount = ticketCategory.getPrice()
-                .multiply(BigDecimal.valueOf(request.getQuantity()));
+        BigDecimal totalAmount = ticketCategory.getPrice().multiply(BigDecimal.valueOf(quantity));
         BigDecimal discountAmount = BigDecimal.ZERO;
 
         if (normalizedVoucherCode != null) {
@@ -71,7 +93,6 @@ public class BookingService {
 
         BigDecimal finalAmount = totalAmount.subtract(discountAmount);
 
-        // 4) Lưu Booking vào DB
         Booking booking = Booking.builder()
                 .user(currentUser)
                 .voucher(voucher)
@@ -89,21 +110,20 @@ public class BookingService {
         } catch (DataIntegrityViolationException e) {
             Booking winner = bookingRepository.findByIdempotencyKey(idempotencyKey)
                     .orElseThrow(() -> e);
-            return handleExistingIdempotencyKey(winner, request, normalizedVoucherCode);
+            List<BookingItem> items = bookingItemRepository.findByBookingId(winner.getId());
+            Payment payment = paymentRepository.findByBookingId(winner.getId()).orElse(null);
+            return mapToBookingResponse(winner, items, payment, true);
         }
 
-        // 5) Lưu BookingItem đàng hoàng vào DB qua bookingItemRepository
         BookingItem item = BookingItem.builder()
                 .booking(savedBooking)
                 .ticketCategory(ticketCategory)
-                .quantity(request.getQuantity())
+                .quantity(quantity)
                 .unitPrice(ticketCategory.getPrice())
                 .subtotal(totalAmount)
                 .build();
-
         BookingItem savedItem = bookingItemRepository.save(item);
 
-        // 6) Lưu Payment đàng hoàng vào DB qua paymentRepository
         Payment initialPayment = Payment.builder()
                 .booking(savedBooking)
                 .amount(finalAmount)
@@ -111,10 +131,8 @@ public class BookingService {
                 .status(PaymentStatus.PENDING)
                 .transactionRef("TXN_" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
                 .build();
-
         Payment savedPayment = paymentRepository.save(initialPayment);
 
-        // 7) Ghi nhận lượt dùng voucher
         if (voucher != null) {
             incrementVoucherUsage(voucher);
             voucherUsageRepository.save(VoucherUsage.builder()
@@ -124,8 +142,22 @@ public class BookingService {
                     .build());
         }
 
-        // 8) Map sang BookingResponse DTO
         return mapToBookingResponse(savedBooking, List.of(savedItem), savedPayment, false);
+    }
+
+    // Dùng bởi HoldService khi hold đã ở trạng thái CONFIRMED (retry) — trả về booking đã có sẵn
+    // theo đúng quyền sở hữu, không tạo lại / xử lý lại nghiệp vụ.
+    public BookingResponse getBookingResponse(Long bookingId, User currentUser) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new IllegalStateException("Booking không tồn tại: " + bookingId));
+
+        if (!booking.getUser().getId().equals(currentUser.getId())) {
+            throw new IdempotencyConflictException("Booking này không thuộc về bạn");
+        }
+
+        List<BookingItem> items = bookingItemRepository.findByBookingId(booking.getId());
+        Payment payment = paymentRepository.findByBookingId(booking.getId()).orElse(null);
+        return mapToBookingResponse(booking, items, payment, true);
     }
 
     // ---------------------------------------------------------------------
@@ -163,34 +195,6 @@ public class BookingService {
             return null;
         }
         return raw.trim();
-    }
-
-    // ---------------------------------------------------------------------
-    // Trừ kho vé — optimistic lock (@Version) + retry khi conflict
-    // ---------------------------------------------------------------------
-
-    private TicketCategory reserveStock(Long ticketCategoryId, int quantity) {
-        int attempt = 0;
-        while (true) {
-            attempt++;
-            TicketCategory ticketCategory = ticketCategoryRepository.findById(ticketCategoryId)
-                    .orElseThrow(() -> new InsufficientTicketException("Loại vé không tồn tại"));
-
-            if (ticketCategory.getAvailableQuantity() < quantity) {
-                throw new InsufficientTicketException("Vé đã hết hoặc không đủ số lượng yêu cầu");
-            }
-            ticketCategory.setAvailableQuantity(ticketCategory.getAvailableQuantity() - quantity);
-
-            try {
-                return ticketCategoryRepository.saveAndFlush(ticketCategory);
-            } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
-                entityManager.clear();
-                if (attempt > MAX_STOCK_RETRY) {
-                    throw new InsufficientTicketException(
-                            "Vé vừa được người khác đặt, vui lòng thử lại");
-                }
-            }
-        }
     }
 
     // ---------------------------------------------------------------------
@@ -244,8 +248,7 @@ public class BookingService {
                 voucherRepository.saveAndFlush(voucher);
                 return;
             } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
-                entityManager.clear();
-                if (attempt > MAX_STOCK_RETRY) {
+                if (attempt > MAX_VOUCHER_RETRY) {
                     throw new VoucherInvalidException("Voucher vừa hết lượt, vui lòng thử lại");
                 }
                 voucher = voucherRepository.findById(voucher.getId())
@@ -293,4 +296,87 @@ public class BookingService {
                 .isReplay(isReplay)
                 .build();
     }
+
+    /**
+     * GET /bookings — danh sách booking của user hiện tại.
+     * statusFilter == null -> tab "Tất cả", không lọc.
+     */
+    @Transactional(readOnly = true)
+    public List<BookingListItemResponse> getMyBookings(User currentUser, BookingStatus statusFilter) {
+        List<Booking> bookings = (statusFilter == null)
+                ? bookingRepository.findByUser_IdOrderByCreatedAtDesc(currentUser.getId())
+                : bookingRepository.findByUser_IdAndStatusOrderByCreatedAtDesc(currentUser.getId(), statusFilter);
+
+        return bookings.stream().map(this::toListItem).toList();
+    }
+
+    /**
+     * GET /bookings/:id — chi tiết 1 booking.
+     * 404 nếu booking không tồn tại, 403 nếu không phải chủ booking (theo đúng đặc tả API).
+     */
+    @Transactional(readOnly = true)
+    public BookingDetailResponse getBookingDetail(User currentUser, Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy booking id=" + bookingId));
+
+        if (!booking.getUser().getId().equals(currentUser.getId())) {
+            throw new ForbiddenException("Bạn không có quyền xem booking này");
+        }
+
+        return toDetail(booking);
+    }
+
+    private BookingListItemResponse toListItem(Booking booking) {
+        // Hiện tại 1 booking chỉ chứa vé của đúng 1 concert (POST /bookings chỉ nhận
+        // 1 ticketCategoryId/lần), nên lấy concert đại diện từ item đầu tiên là an toàn.
+        BookingItem firstItem = booking.getItems().isEmpty() ? null : booking.getItems().get(0);
+        TicketCategory tc = firstItem != null ? firstItem.getTicketCategory() : null;
+
+        int totalTickets = booking.getItems().stream()
+                .mapToInt(BookingItem::getQuantity)
+                .sum();
+
+        return BookingListItemResponse.builder()
+                .bookingId(booking.getId())
+                .status(booking.getStatus())
+                .concertName(tc != null ? tc.getConcert().getName() : null)
+                .concertPosterUrl(tc != null ? tc.getConcert().getPosterUrl() : null)
+                .totalTicketCount(totalTickets)
+                .finalAmount(booking.getFinalAmount())
+                .expiresAt(booking.getExpiresAt())
+                .createdAt(booking.getCreatedAt())
+                .build();
+    }
+
+    private BookingDetailResponse toDetail(Booking booking) {
+        BookingItem firstItem = booking.getItems().isEmpty() ? null : booking.getItems().get(0);
+        TicketCategory tc = firstItem != null ? firstItem.getTicketCategory() : null;
+
+        List<BookingItemResponse> items = booking.getItems().stream()
+                .map(it -> BookingItemResponse.builder()
+                        .ticketCategoryId(it.getTicketCategory().getId())
+                        .ticketCategoryName(it.getTicketCategory().getName())
+                        .quantity(it.getQuantity())
+                        .unitPrice(it.getUnitPrice())
+                        .subtotal(it.getSubtotal())
+                        .build())
+                .toList();
+
+        return BookingDetailResponse.builder()
+                .bookingId(booking.getId())
+                .status(booking.getStatus())
+                .concertName(tc != null ? tc.getConcert().getName() : null)
+                .concertVenue(tc != null ? tc.getConcert().getVenue() : null)
+                .concertEventDate(tc != null ? tc.getConcert().getEventDate() : null)
+                .concertPosterUrl(tc != null ? tc.getConcert().getPosterUrl() : null)
+                .voucherCode(booking.getVoucher() != null ? booking.getVoucher().getCode() : null)
+                .totalAmount(booking.getTotalAmount())
+                .discountAmount(booking.getDiscountAmount())
+                .finalAmount(booking.getFinalAmount())
+                .expiresAt(booking.getExpiresAt())
+                .createdAt(booking.getCreatedAt())
+                .items(items)
+                .build();
+    }
+
 }

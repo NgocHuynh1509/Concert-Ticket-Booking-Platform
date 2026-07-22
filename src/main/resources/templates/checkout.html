@@ -46,6 +46,22 @@
             padding-top: 8px;
             margin-bottom: 0;
         }
+        .hold-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 152, 0, 0.15);
+            border: 1px solid rgba(255, 152, 0, 0.4);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .hold-status.error {
+            background: rgba(229, 57, 53, 0.15);
+            border-color: rgba(229, 57, 53, 0.4);
+        }
+        .hold-status .time { font-weight: bold; color: #ff9800; }
         .error-msg { color: #ff4d4d; margin-top: 10px; font-size: 14px; }
     </style>
 </head>
@@ -61,6 +77,11 @@
         <h3 id="ticket-name">Đang tải thông tin vé...</h3>
         <p>Đơn giá: <span id="ticket-price">0</span> VNĐ</p>
         <p>Còn lại: <span id="ticket-stock">0</span> vé</p>
+    </div>
+
+    <div id="hold-status" class="hold-status" style="display:none;">
+        <span id="hold-status-text">Đang giữ chỗ...</span>
+        <span class="time" id="hold-countdown">--:--</span>
     </div>
 
     <form id="checkout-form">
@@ -106,31 +127,183 @@
 
     let ticketUnitPrice = 0;
     let availableVouchers = [];
+    let holdCountdownInterval = null;
+    let quantityDebounceTimer = null;
 
     if (!token) {
         alert("Vui lòng đăng nhập trước khi đặt vé!");
         location.href = "/login";
     }
-
     if (!ticketId) {
         alert("Chưa chọn loại vé nào!");
         location.href = "/";
     }
 
-    function getIdempotencyKey() {
-        let key = sessionStorage.getItem("current_idempotency_key");
-        if (!key) {
-            key = crypto.randomUUID();
-            sessionStorage.setItem("current_idempotency_key", key);
+    function handleUnauthorized(res) {
+        if (res.status === 401) {
+            alert("Hết phiên đăng nhập, vui lòng đăng nhập lại.");
+            location.href = "/login";
+            return true;
         }
-        return key;
+        return false;
     }
 
-    // Load Thông tin vé + Danh sách Voucher cùng lúc
+    async function extractErrorMessage(res, fallback) {
+        try {
+            const errData = await res.json();
+            if (errData && errData.message) return errData.message;
+        } catch (_) { /* body không phải JSON hợp lệ -> dùng fallback */ }
+        return fallback + " (mã lỗi: " + res.status + ")";
+    }
+
+    function setHoldStatus(text, isError) {
+        const box = document.getElementById("hold-status");
+        box.style.display = "flex";
+        box.classList.toggle("error", !!isError);
+        document.getElementById("hold-status-text").innerText = text;
+    }
+
+    function currentQuantity() {
+        return parseInt(document.getElementById("quantity").value) || 1;
+    }
+
+    function startHoldCountdown(expiresAtIso) {
+        if (holdCountdownInterval) clearInterval(holdCountdownInterval);
+        const expiresAt = new Date(expiresAtIso).getTime();
+
+        function tick() {
+            const remainingMs = expiresAt - Date.now();
+            const el = document.getElementById("hold-countdown");
+            if (remainingMs <= 0) {
+                el.innerText = "hết hạn";
+                setHoldStatus("Lượt giữ chỗ đã hết hạn — đang giữ lại...", true);
+                clearInterval(holdCountdownInterval);
+                // Tự động thử giữ chỗ lại (vé có thể đã hết nếu flash sale căng, lúc đó sẽ báo lỗi).
+                ensureHold(currentQuantity(), true).catch(err => {
+                    document.getElementById("error-message").innerText = err.message;
+                });
+                return;
+            }
+            const totalSec = Math.floor(remainingMs / 1000);
+            const mm = String(Math.floor(totalSec / 60)).padStart(2, "0");
+            const ss = String(totalSec % 60).padStart(2, "0");
+            el.innerText = `${mm}:${ss}`;
+        }
+        tick();
+        holdCountdownInterval = setInterval(tick, 1000);
+    }
+
+    // -----------------------------------------------------------------
+    // GIỮ CHỖ (Hold): tạo ngay khi vào trang, tạo lại khi đổi số lượng.
+    //
+    // FIX: state lưu ở localStorage (khoá theo ticketId) thay vì sessionStorage, và LUÔN kiểm
+    // tra "hold hiện có còn dùng được không" (đúng quantity + chưa hết hạn theo đồng hồ máy
+    // user) TRƯỚC KHI gọi bất kỳ API nào. Trước đây mỗi lần load lại trang hoặc đổi số lượng
+    // đều release-rồi-create dù cấu hình không đổi, gây ra rất nhiều bản ghi RELEASED thừa.
+    // Giờ nếu hold cũ vẫn khớp và còn hạn -> dùng lại luôn, KHÔNG gọi API nào cả.
+    // -----------------------------------------------------------------
+    function holdStorageKey() {
+        return `hold_state_${ticketId}`;
+    }
+
+    function loadStoredHold() {
+        try {
+            const raw = localStorage.getItem(holdStorageKey());
+            return raw ? JSON.parse(raw) : null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function saveStoredHold(holdId, quantity, expiresAt) {
+        localStorage.setItem(holdStorageKey(), JSON.stringify({ holdId, quantity, expiresAt }));
+    }
+
+    function clearStoredHold() {
+        localStorage.removeItem(holdStorageKey());
+    }
+
+    async function ensureHold(quantity, force) {
+        const stored = loadStoredHold();
+        const stillValid = stored
+            && stored.quantity === quantity
+            && new Date(stored.expiresAt).getTime() > Date.now();
+
+        if (!force && stillValid) {
+            // Hold cũ vẫn đúng quantity và chưa hết hạn -> dùng lại, KHÔNG gọi API.
+            setHoldStatus("Đã giữ chỗ cho bạn trong:", false);
+            document.getElementById("btn-submit").disabled = false;
+            startHoldCountdown(stored.expiresAt);
+            return stored.holdId;
+        }
+
+        if (stored && stored.holdId) {
+            await releaseHoldQuietly(stored.holdId);
+        }
+
+        setHoldStatus("Đang giữ chỗ...", false);
+
+        const idempotencyKey = crypto.randomUUID();
+        const res = await fetch("/api/holds", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token,
+                "Idempotency-Key": idempotencyKey
+            },
+            body: JSON.stringify({ ticketCategoryId: parseInt(ticketId), quantity })
+        });
+
+        if (handleUnauthorized(res)) return null;
+        if (!res.ok) {
+            setHoldStatus("Không thể giữ chỗ — có thể vé đã hết", true);
+            document.getElementById("btn-submit").disabled = true;
+            throw new Error(await extractErrorMessage(res, "Không thể giữ chỗ vé"));
+        }
+
+        const hold = await res.json();
+        saveStoredHold(hold.id, quantity, hold.expiresAt);
+
+        setHoldStatus("Đã giữ chỗ cho bạn trong:", false);
+        document.getElementById("btn-submit").disabled = false;
+        startHoldCountdown(hold.expiresAt);
+        return hold.id;
+    }
+
+    // Huỷ hold cũ khi thực sự đổi số lượng (hoặc hold cũ đã hết hạn) — best-effort, không chặn
+    // luồng nếu lỗi (hold có thể đã tự hết hạn/bị scheduler dọn rồi; releaseHold ở backend là
+    // thao tác idempotent nên gọi lại vẫn an toàn).
+    async function releaseHoldQuietly(holdId) {
+        try {
+            await fetch(`/api/holds/${holdId}`, {
+                method: "DELETE",
+                headers: { "Authorization": "Bearer " + token }
+            });
+        } catch (e) {
+            console.warn("Không thể huỷ hold cũ:", e);
+        }
+        clearStoredHold();
+    }
+
+    // Load Thông tin vé + Danh sách Voucher, khôi phục lại số lượng đã chọn trước đó (nếu còn
+    // hold hợp lệ cho ticket này), rồi giữ chỗ với đúng số lượng đó.
+    //
+    // FIX: input quantity có value="1" cứng trong HTML -> mỗi lần load lại trang nó luôn hiện
+    // về 1, dù localStorage vẫn đang nhớ hold cũ với quantity khác (ví dụ 2) -> ensureHold thấy
+    // lệch signature nên lại huỷ hold đúng đang giữ để tạo hold sai cho quantity=1. Phải khôi
+    // phục giá trị input TRƯỚC khi gọi ensureHold để nó nhận ra hold cũ vẫn khớp và tái sử dụng.
     async function initPage() {
         try {
             await Promise.all([loadTicketInfo(), loadVouchers()]);
+
+            const stored = loadStoredHold();
+            const stillValid = stored && new Date(stored.expiresAt).getTime() > Date.now();
+            if (stillValid) {
+                document.getElementById("quantity").value = stored.quantity;
+            }
+
             calculateTotal();
+            await ensureHold(currentQuantity());
         } catch (err) {
             console.error(err);
             document.getElementById("error-message").innerText = "Lỗi khởi tạo: " + err.message;
@@ -141,6 +314,7 @@
         const res = await fetch(`/api/ticket-categories/${ticketId}`, {
             headers: { "Authorization": "Bearer " + token }
         });
+        if (handleUnauthorized(res)) return;
         if (res.status === 404) {
             alert("Loại vé không tồn tại!");
             location.href = "/";
@@ -161,6 +335,7 @@
         const res = await fetch("/api/vouchers/available", {
             headers: { "Authorization": "Bearer " + token }
         });
+        if (handleUnauthorized(res)) return;
         if (!res.ok) return; // Nếu lỗi nhẹ lấy voucher thì vẫn cho đặt không voucher
 
         availableVouchers = await res.json();
@@ -181,9 +356,8 @@
         });
     }
 
-    // Hàm tính toán giá tiền tức thì khi đổi voucher hoặc số lượng
     function calculateTotal() {
-        const qty = parseInt(document.getElementById("quantity").value) || 1;
+        const qty = currentQuantity();
         const subtotal = ticketUnitPrice * qty;
 
         const selectedCode = document.getElementById("voucher-select").value;
@@ -207,7 +381,19 @@
     }
 
     document.getElementById("quantity").addEventListener("input", calculateTotal);
+    document.getElementById("quantity").addEventListener("change", () => {
+        // 'change' chỉ bắn khi giá trị được "chốt" (rời ô nhập, hoặc bấm mũi tên tăng/giảm) —
+        // không bắn liên tục theo từng phím gõ như 'input', nên giảm hẳn số lần gọi API giữ chỗ.
+        clearTimeout(quantityDebounceTimer);
+        quantityDebounceTimer = setTimeout(() => {
+            ensureHold(currentQuantity()).catch(err => {
+                document.getElementById("error-message").innerText = err.message;
+            });
+        }, 300);
+    });
     document.getElementById("voucher-select").addEventListener("change", calculateTotal);
+    // Đổi voucher KHÔNG cần tạo lại hold — voucher chỉ được áp dụng ở bước confirm,
+    // hold chỉ quan tâm ticketCategoryId + quantity.
 
     initPage();
 
@@ -217,44 +403,44 @@
         const btnSubmit = document.getElementById("btn-submit");
         const errorDiv = document.getElementById("error-message");
         errorDiv.innerText = "";
+
+        const holdId = loadStoredHold()?.holdId;
+        if (!holdId) {
+            errorDiv.innerText = "Chưa giữ được chỗ cho vé này, vui lòng thử lại.";
+            return;
+        }
+
         btnSubmit.disabled = true;
         btnSubmit.innerText = "Đang xử lý...";
 
-        // 💡 TẠO KEY MỚI MỖI LẦN BẤM ĐẶT VÉ ĐỂ TRÁNH TRÙNG PAYLOAD CŨ
-        const idempotencyKey = crypto.randomUUID();
-
-        const quantity = parseInt(document.getElementById("quantity").value);
         const voucherCode = document.getElementById("voucher-select").value;
 
-        const payload = {
-            ticketCategoryId: parseInt(ticketId),
-            quantity: quantity,
-            voucherCode: voucherCode !== "" ? voucherCode : null
-        };
-
         try {
-            const response = await fetch("/api/bookings", {
+            // Confirm hold -> tạo Booking + Payment thật. Không cần gửi Idempotency-Key riêng ở
+            // đây: backend tự sinh key cho Booking từ chính holdId, nên bấm lại nhiều lần (mạng
+            // lag, double-click) vẫn an toàn, không tạo booking trùng.
+            const response = await fetch(`/api/holds/${holdId}/confirm`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token,
-                    "Idempotency-Key": idempotencyKey // Gửi key mới tạo
+                    "Authorization": "Bearer " + token
                 },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ voucherCode: voucherCode !== "" ? voucherCode : null })
             });
 
+            if (handleUnauthorized(response)) return;
+
             if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.message || "Đặt vé thất bại! Mã lỗi: " + response.status);
+                throw new Error(await extractErrorMessage(response, "Xác nhận đặt vé thất bại"));
             }
 
             const result = await response.json();
 
-            // Xóa ticketId tạm
+            if (holdCountdownInterval) clearInterval(holdCountdownInterval);
+            clearStoredHold();
             sessionStorage.removeItem("checkout_ticket_id");
 
-            const bookingId = result.bookingId || result.id;
-            location.href = `/booking-success?id=${bookingId}`;
+            location.href = `/payment?id=${result.id}`;
 
         } catch (error) {
             console.error(error);

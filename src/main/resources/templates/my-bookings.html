@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Vé của tôi - ConcertBooking</title>
+
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/bookings.css">
+</head>
+<body>
+
+<div class="header">
+    <h1 onclick="location.href='/'" style="cursor:pointer;">ConcertBooking</h1>
+
+    <div style="display:flex;align-items:center;gap:15px;">
+        <span id="user-greeting"></span>
+        <button id="logout-btn" class="btn-primary">Đăng xuất</button>
+    </div>
+</div>
+
+<div class="bookings-container">
+
+    <h2 style="color:var(--text-primary);margin-bottom:10px;">
+        Vé của tôi
+    </h2>
+
+    <p style="color:var(--text-secondary);margin-bottom:20px;">
+        Toàn bộ vé bạn đã đặt, theo dõi trạng thái thanh toán tại đây.
+    </p>
+
+    <div class="filter-tabs">
+
+        <button class="tab-btn active" data-status="ALL">
+            Tất cả
+        </button>
+
+        <button class="tab-btn" data-status="PENDING_PAYMENT">
+            Đang chờ thanh toán
+        </button>
+
+        <button class="tab-btn" data-status="PAID">
+            Đã thanh toán
+        </button>
+
+        <button class="tab-btn" data-status="EXPIRED">
+            Đã hết hạn
+        </button>
+
+    </div>
+
+    <div id="booking-list" class="booking-list"></div>
+
+</div>
+
+<script>
+
+    const token = localStorage.getItem("token");
+    const username = localStorage.getItem("username");
+
+    if (!token){
+        location.href="/login";
+    }
+
+    document.getElementById("user-greeting").innerHTML="Hi, "+username;
+
+    document.getElementById("logout-btn").onclick=()=>{
+
+        localStorage.removeItem("token");
+        localStorage.removeItem("username");
+
+        location.href="/login";
+    };
+
+    let currentStatus="ALL";
+
+    document.querySelectorAll(".tab-btn").forEach(btn=>{
+
+        btn.addEventListener("click",()=>{
+
+            document.querySelectorAll(".tab-btn")
+                .forEach(x=>x.classList.remove("active"));
+
+            btn.classList.add("active");
+
+            currentStatus=btn.dataset.status;
+
+            loadBookings(currentStatus);
+
+        });
+
+    });
+
+    loadBookings(currentStatus);
+
+    async function loadBookings(status){
+
+        const list=document.getElementById("booking-list");
+
+        list.innerHTML="<p>Đang tải...</p>";
+
+        try{
+
+            const url=status==="ALL"
+                ?"/api/bookings"
+                :"/api/bookings?status="+status;
+
+            const response=await fetch(url,{
+                headers:{
+                    Authorization:"Bearer "+token
+                },
+                cache:"no-store"
+            });
+
+            if(response.status===401||response.status===403){
+
+                localStorage.removeItem("token");
+
+                location.href="/login";
+
+                return;
+            }
+
+            if(!response.ok){
+
+                list.innerHTML="<p>Không tải được danh sách vé.</p>";
+
+                return;
+            }
+
+            const bookings=await response.json();
+
+            renderBookings(bookings);
+
+        }catch(e){
+
+            console.log(e);
+
+            list.innerHTML="<p>Lỗi kết nối máy chủ.</p>";
+
+        }
+
+    }
+
+    function statusBadge(status){
+
+        const map={
+
+            PENDING_PAYMENT:["Đang chờ thanh toán","pending"],
+
+            PAID:["Đã thanh toán","paid"],
+
+            CANCELLED:["Đã huỷ","cancelled"],
+
+            FAILED:["Thất bại","failed"],
+
+            EXPIRED:["Đã hết hạn","expired"]
+
+        };
+
+        const [label,cls]=map[status]||[status,""];
+
+        return `<span class="badge ${cls}">${label}</span>`;
+
+    }
+
+    function renderBookings(bookings){
+
+        const list=document.getElementById("booking-list");
+
+        list.innerHTML="";
+
+        if(!bookings||bookings.length===0){
+
+            list.innerHTML="<p>Không có vé nào ở mục này.</p>";
+
+            return;
+
+        }
+
+        bookings.forEach(b=>{
+
+            const poster=
+                b.concertPosterUrl&&b.concertPosterUrl.trim()!==""
+                    ?b.concertPosterUrl
+                    :"/images/default-concert.jpg";
+
+            const created=
+                new Date(b.createdAt).toLocaleString("vi-VN");
+
+            const finalAmount=
+                Number(b.finalAmount).toLocaleString("vi-VN")+" VNĐ";
+
+            let expiresLine="";
+
+            if(b.status==="PENDING_PAYMENT"&&b.expiresAt){
+
+                expiresLine=
+                    `<div class="booking-meta">
+                ⏳ Hết hạn giữ chỗ lúc
+                ${new Date(b.expiresAt).toLocaleString("vi-VN")}
+            </div>`;
+
+            }
+
+            const card=document.createElement("div");
+
+            card.className="glass-panel booking-card";
+
+            card.style.cursor="pointer";
+
+            card.innerHTML=`
+
+            <div class="booking-image"
+                 style="background-image:url('${poster}')">
+            </div>
+
+            <div class="booking-info">
+
+                <div class="booking-title">
+                    ${b.concertName||"Concert"}
+                </div>
+
+                <div class="booking-meta">
+                    🎫 ${b.ticketCount} vé — ${finalAmount}
+                </div>
+
+                <div class="booking-meta">
+                    🕐 Đặt lúc ${created}
+                </div>
+
+                ${expiresLine}
+
+                <div class="booking-status">
+                    ${statusBadge(b.status)}
+                </div>
+
+                ${
+                b.status==="PENDING_PAYMENT"
+                    ?
+                    `
+                    <button
+                        class="btn-primary pay-btn"
+                        data-id="${b.id}"
+                        style="margin-top:12px;">
+                        Thanh toán ngay
+                    </button>
+                    `
+                    :
+                    ""
+            }
+
+            </div>
+
+        `;
+
+            card.addEventListener("click",()=>{
+
+                location.href="/booking/"+b.id;
+
+            });
+
+            list.appendChild(card);
+
+            const payBtn=card.querySelector(".pay-btn");
+
+            if(payBtn){
+
+                payBtn.addEventListener("click",(e)=>{
+
+                    e.stopPropagation();
+
+                    location.href="/payment?id="+b.id;
+
+                });
+
+            }
+
+        });
+
+    }
+
+</script>
+
+</body>
+</html>

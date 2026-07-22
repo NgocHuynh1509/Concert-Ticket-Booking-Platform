@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Thanh Toán</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .payment-card {
+            position: relative;
+            max-width: 550px;
+            margin: 50px auto;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.85); /* Tăng độ đục của nền để nổi bật chữ đen */
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            color: #111; /* Đổi toàn bộ chữ mặc định thành màu đen */
+        }
+
+        /* Nút quay về dạng Icon ở góc card */
+        .back-home-icon {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.08);
+            color: #111; /* Chữ/Icon màu đen */
+            text-decoration: none;
+            transition: all 0.25s ease;
+        }
+        .back-home-icon:hover {
+            background: rgba(0, 0, 0, 0.18);
+            transform: translateX(-3px);
+        }
+
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            color: #222;
+        }
+        .price-row.total {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #000; /* Đổi giá tiền sang chữ đen chốt */
+            border-top: 1px solid rgba(0, 0, 0, 0.15);
+            padding-top: 10px;
+            margin-top: 6px;
+        }
+        .countdown-box {
+            text-align: center;
+            margin: 18px 0;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            color: #333;
+        }
+        .countdown-box .time { font-size: 1.4rem; font-weight: bold; color: #d32f2f; }
+        .method-list { margin: 20px 0; }
+        .method-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.04);
+            margin-bottom: 8px;
+            color: #111;
+        }
+        .method-option.disabled { opacity: 0.5; }
+        .method-option .tag {
+            margin-left: auto;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: #e0e0e0;
+            color: #222;
+        }
+        .mock-note {
+            font-size: 12px;
+            color: #555; /* Màu xám tối / đen nhạt */
+            text-align: center;
+            margin-top: 6px;
+        }
+        .btn-row { display: flex; gap: 12px; margin-top: 20px; }
+        .btn-row button, .btn-row a {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-success { background: #4caf50; color: #fff; }
+        .btn-fail { background: #e53935; color: #fff; }
+
+        /* CSS riêng cho nút Trang chủ bên dưới */
+        .btn-home {
+            background: rgba(0, 0, 0, 0.08);
+            color: #111; /* Chữ màu đen */
+            border: 1px solid rgba(0, 0, 0, 0.15) !important;
+            transition: all 0.25s ease;
+        }
+        .btn-home:hover {
+            background: rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .error-msg { color: #d32f2f; margin-top: 12px; font-size: 14px; text-align: center; font-weight: 500; }
+        .info-msg { color: #2e7d32; margin-top: 12px; font-size: 14px; text-align: center; font-weight: 500; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>ConcertBooking - Thanh Toán</h1>
+</div>
+
+<div class="payment-card">
+    <!-- Icon quay về trang chủ góc trên bên trái card -->
+    <a href="/" class="back-home-icon" title="Về trang chủ">
+        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+        </svg>
+    </a>
+
+    <h2 style="text-align:center; color: #000;">Xác nhận thanh toán</h2>
+
+    <div class="price-row">
+        <span>Booking ID:</span>
+        <strong id="booking-id" style="color: #000;">-</strong>
+    </div>
+    <div class="price-row total">
+        <span>Số tiền cần thanh toán:</span>
+        <span id="final-amount">0 VNĐ</span>
+    </div>
+
+    <div class="countdown-box">
+        <div>Thời gian giữ chỗ còn lại</div>
+        <div class="time" id="countdown-time">--:--</div>
+    </div>
+
+    <div class="method-list">
+        <div class="method-option">
+            <input type="radio" name="method" value="MOCK" checked>
+            <span>Cổng thanh toán giả lập (Mock Gateway)</span>
+            <span class="tag">Đang dùng</span>
+        </div>
+        <div class="method-option disabled">
+            <input type="radio" name="method" value="VNPAY" disabled>
+            <span>VNPay</span>
+            <span class="tag">Sắp có</span>
+        </div>
+    </div>
+
+    <div class="btn-row">
+        <button id="btn-success" class="btn-success">✅ Giả lập THÀNH CÔNG</button>
+        <button id="btn-fail" class="btn-fail">❌ Giả lập THẤT BẠI</button>
+    </div>
+
+    <!-- Nút Về Trang Chủ đặt bên dưới các nút hành động chính -->
+    <div style="margin-top: 10px;">
+        <a href="/" class="btn-home" style="width: 100%;">🏠 Về trang chủ</a>
+    </div>
+
+    <p class="mock-note">Đây là cổng thanh toán mock — không có giao dịch tiền thật nào xảy ra.</p>
+
+    <div id="error-message" class="error-msg"></div>
+    <div id="info-message" class="info-msg"></div>
+</div>
+
+<script>
+    const token = localStorage.getItem("token");
+    const urlParams = new URLSearchParams(window.location.search);
+    const bookingId = urlParams.get("id");
+
+    let paymentId = null;
+    let countdownInterval = null;
+
+    if (!token) {
+        alert("Vui lòng đăng nhập trước!");
+        location.href = "/login";
+    }
+    if (!bookingId) {
+        alert("Không tìm thấy thông tin đơn hàng!");
+        location.href = "/";
+    }
+
+    function handleUnauthorized(res) {
+        if (res.status === 401) {
+            alert("Hết phiên đăng nhập, vui lòng đăng nhập lại.");
+            location.href = "/login";
+            return true;
+        }
+        return false;
+    }
+
+    function formatVND(amount) {
+        return Number(amount || 0).toLocaleString("vi-VN") + " VNĐ";
+    }
+
+    function setButtonsEnabled(enabled) {
+        document.getElementById("btn-success").disabled = !enabled;
+        document.getElementById("btn-fail").disabled = !enabled;
+    }
+
+    function startCountdown(expiresAtIso) {
+        if (countdownInterval) clearInterval(countdownInterval);
+        const expiresAt = new Date(expiresAtIso).getTime();
+
+        function tick() {
+            const remainingMs = expiresAt - Date.now();
+            const el = document.getElementById("countdown-time");
+            if (remainingMs <= 0) {
+                el.innerText = "Đã hết hạn";
+                setButtonsEnabled(false);
+                document.getElementById("error-message").innerText =
+                    "Lượt giữ chỗ đã hết hạn, vui lòng đặt vé lại.";
+                clearInterval(countdownInterval);
+                return;
+            }
+            const totalSec = Math.floor(remainingMs / 1000);
+            const mm = String(Math.floor(totalSec / 60)).padStart(2, "0");
+            const ss = String(totalSec % 60).padStart(2, "0");
+            el.innerText = `${mm}:${ss}`;
+        }
+        tick();
+        countdownInterval = setInterval(tick, 1000);
+    }
+
+    async function loadBooking() {
+        try {
+            const res = await fetch(`/api/bookings/${bookingId}`, {
+                headers: { "Authorization": "Bearer " + token }
+            });
+            if (handleUnauthorized(res)) return;
+            if (!res.ok) throw new Error("Không thể tải thông tin đơn hàng");
+
+            const booking = await res.json();
+
+            document.getElementById("booking-id").innerText = booking.id;
+            document.getElementById("final-amount").innerText = formatVND(booking.finalAmount);
+
+            if (booking.status === "PAID") {
+                location.href = `/booking-success?id=${booking.id}`;
+                return;
+            }
+            if (booking.status !== "PENDING_PAYMENT") {
+                setButtonsEnabled(false);
+                document.getElementById("error-message").innerText =
+                    `Đơn hàng không còn chờ thanh toán (trạng thái: ${booking.status}).`;
+                return;
+            }
+            if (!booking.payment || !booking.payment.id) {
+                setButtonsEnabled(false);
+                document.getElementById("error-message").innerText =
+                    "Không tìm thấy thông tin thanh toán cho đơn hàng này.";
+                return;
+            }
+
+            paymentId = booking.payment.id;
+
+            if (booking.expiresAt) {
+                startCountdown(booking.expiresAt);
+            }
+        } catch (err) {
+            console.error(err);
+            document.getElementById("error-message").innerText = err.message;
+        }
+    }
+
+    async function confirmPayment(result) {
+        if (!paymentId) return;
+
+        setButtonsEnabled(false);
+        document.getElementById("error-message").innerText = "";
+        document.getElementById("info-message").innerText = "Đang xử lý...";
+
+        try {
+            const res = await fetch(`/api/payments/${paymentId}/confirm`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({ result })
+            });
+
+            if (handleUnauthorized(res)) return;
+
+            if (!res.ok) {
+                let message = "Xác nhận thanh toán thất bại! Mã lỗi: " + res.status;
+                try {
+                    const errData = await res.json();
+                    if (errData && errData.message) message = errData.message;
+                } catch (_) { /* giữ message mặc định */ }
+                throw new Error(message);
+            }
+
+            const booking = await res.json();
+
+            if (booking.status === "PAID") {
+                if (countdownInterval) clearInterval(countdownInterval);
+                document.getElementById("info-message").innerText = "Thanh toán thành công! Đang chuyển trang...";
+                setTimeout(() => location.href = `/booking-success?id=${booking.id}`, 800);
+            } else {
+                document.getElementById("info-message").innerText = "";
+                document.getElementById("error-message").innerText =
+                    "Thanh toán thất bại. Bạn có thể thử lại trong thời gian giữ chỗ.";
+                setButtonsEnabled(true);
+            }
+        } catch (err) {
+            console.error(err);
+            document.getElementById("info-message").innerText = "";
+            document.getElementById("error-message").innerText = err.message;
+            setButtonsEnabled(true);
+        }
+    }
+
+    document.getElementById("btn-success").addEventListener("click", () => confirmPayment("SUCCESS"));
+    document.getElementById("btn-fail").addEventListener("click", () => confirmPayment("FAILED"));
+
+    loadBooking();
+</script>
+</body>
+</html>
