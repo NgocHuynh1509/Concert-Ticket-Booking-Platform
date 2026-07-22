@@ -7,6 +7,83 @@
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/dashboard.css">
     <link rel="stylesheet" href="/css/booking-op.css">
+    <style>
+        /* =========================================================================
+           FIX FORM BỘ LỌC TÌM KIẾM
+           ========================================================================= */
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px 20px;
+            align-items: flex-end;
+        }
+
+        .filter-grid .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filter-grid label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary, #555);
+        }
+
+        /* Đồng bộ kích thước & style cho tất cả ô nhập liệu / dropdown */
+        .filter-grid input[type="text"],
+        .filter-grid input[type="datetime-local"],
+        .filter-grid select {
+            width: 100%;
+            height: 40px;
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background-color: #fff;
+            font-size: 14px;
+            color: #333;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .filter-grid input:focus,
+        .filter-grid select:focus {
+            border-color: var(--accent-color, #ff4b2b);
+            box-shadow: 0 0 0 3px rgba(255, 75, 43, 0.15);
+        }
+
+        .filter-grid select:disabled,
+        .filter-grid input:disabled {
+            background-color: #f8fafc;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        /* Hàng chứa nút bấm phía dưới form */
+        .filter-actions {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 8px;
+            padding-top: 16px;
+            border-top: 1px dashed #eee;
+        }
+
+        /* Responsive cho thiết bị nhỏ hơn */
+        @media (max-width: 1024px) {
+            .filter-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
 
@@ -18,83 +95,82 @@
     <h1>Operator dashboard</h1>
     <div class="ops-tabs" style="margin: 12px 0 18px;">
         <a href="/ops/dashboard" class="btn-ghost" style="margin-right:8px;">Concert</a>
-        <a href="/ops/bookings" class="btn-primary">Booking</a>
+        <a href="/ops/bookings" class="btn-primary" style="margin-right:8px;">Booking</a>
+        <a href="/ops/vouchers" class="btn-ghost" style="margin-right:8px;">Voucher</a>
+        <button class="btn-ghost" style="margin-right:8px;" onclick="location.href='/ops/ticket-categories/view'">
+            Tra cứu Ticket Categories
+        </button>
     </div>
 
     <div id="access-warning"></div>
 
     <div id="ops-content" style="display:none;">
 
-        <!-- ================= FILTER PANEL ================= -->
+        <!-- ================= FILTER PANEL (ĐÃ LOẠI BỎ THẺ PANEL TRÙNG) ================= -->
         <div class="panel" style="margin-bottom:20px;">
-            <h2 style="margin-bottom:14px;">Bộ lọc</h2>
-            <!-- ================= FILTER PANEL ================= -->
-            <div class="panel">
-                <h2>Bộ lọc tìm kiếm</h2>
-                <form id="filter-form" class="filter-grid">
-                    <div class="field">
-                        <label for="f-concert">Concert</label>
-                        <select id="f-concert">
-                            <option value="">-- Tất cả --</option>
-                        </select>
-                    </div>
+            <h2 style="margin-bottom:16px;">Bộ lọc tìm kiếm</h2>
+            <form id="filter-form" class="filter-grid">
+                <div class="field">
+                    <label for="f-concert">Concert</label>
+                    <select id="f-concert">
+                        <option value="">-- Tất cả --</option>
+                    </select>
+                </div>
 
-                    <div class="field">
-                        <label for="f-category">Loại vé</label>
-                        <select id="f-category" disabled>
-                            <option value="">-- Chọn concert trước --</option>
-                        </select>
-                    </div>
+                <div class="field">
+                    <label for="f-category">Loại vé</label>
+                    <select id="f-category" disabled>
+                        <option value="">-- Chọn concert trước --</option>
+                    </select>
+                </div>
 
-                    <div class="field">
-                        <label for="f-booking-status">Trạng thái booking</label>
-                        <select id="f-booking-status">
-                            <option value="">-- Tất cả --</option>
-                            <option value="PENDING_PAYMENT">PENDING_PAYMENT</option>
-                            <option value="PAID">PAID</option>
-                            <option value="CANCELLED">CANCELLED</option>
-                            <option value="FAILED">FAILED</option>
-                            <option value="EXPIRED">EXPIRED</option>
-                        </select>
-                    </div>
+                <div class="field">
+                    <label for="f-booking-status">Trạng thái booking</label>
+                    <select id="f-booking-status">
+                        <option value="">-- Tất cả --</option>
+                        <option value="PENDING_PAYMENT">PENDING_PAYMENT</option>
+                        <option value="PAID">PAID</option>
+                        <option value="CANCELLED">CANCELLED</option>
+                        <option value="FAILED">FAILED</option>
+                        <option value="EXPIRED">EXPIRED</option>
+                    </select>
+                </div>
 
-                    <div class="field">
-                        <label for="f-payment-status">Trạng thái thanh toán</label>
-                        <select id="f-payment-status">
-                            <option value="">-- Tất cả --</option>
-                            <option value="PENDING">PENDING</option>
-                            <option value="SUCCESS">SUCCESS</option>
-                            <option value="FAILED">FAILED</option>
-                        </select>
-                    </div>
+                <div class="field">
+                    <label for="f-payment-status">Trạng thái thanh toán</label>
+                    <select id="f-payment-status">
+                        <option value="">-- Tất cả --</option>
+                        <option value="PENDING">PENDING</option>
+                        <option value="SUCCESS">SUCCESS</option>
+                        <option value="FAILED">FAILED</option>
+                    </select>
+                </div>
 
-                    <div class="field">
-                        <label for="f-created-from">Từ ngày (Tạo lúc)</label>
-                        <input type="datetime-local" id="f-created-from">
-                    </div>
+                <div class="field">
+                    <label for="f-created-from">Từ ngày (Tạo lúc)</label>
+                    <input type="datetime-local" id="f-created-from">
+                </div>
 
-                    <div class="field">
-                        <label for="f-created-to">Đến ngày (Tạo lúc)</label>
-                        <input type="datetime-local" id="f-created-to">
-                    </div>
+                <div class="field">
+                    <label for="f-created-to">Đến ngày (Tạo lúc)</label>
+                    <input type="datetime-local" id="f-created-to">
+                </div>
 
-                    <div class="field">
-                        <label for="f-email">Email khách hàng</label>
-                        <input type="text" id="f-email" placeholder="nguyen@gmail.com">
-                    </div>
+                <div class="field">
+                    <label for="f-email">Email khách hàng</label>
+                    <input type="text" id="f-email" placeholder="nguyen@gmail.com">
+                </div>
 
-                    <div class="field">
-                        <label for="f-idem">Idempotency key</label>
-                        <input type="text" id="f-idem" placeholder="Mã request...">
-                    </div>
+                <div class="field">
+                    <label for="f-idem">Idempotency key</label>
+                    <input type="text" id="f-idem" placeholder="Mã request...">
+                </div>
 
-                    <!-- Căn hàng riêng cho Nút Lọc & Xóa -->
-                    <div class="filter-actions" style="grid-column: 1 / -1; justify-content: flex-end; margin-top: 8px;">
-                        <button type="button" class="btn-ghost" id="reset-filter-btn">Xóa lọc</button>
-                        <button type="submit" class="btn-primary" style="min-width: 120px;">Lọc dữ liệu</button>
-                    </div>
-                </form>
-            </div>
+                <div class="filter-actions">
+                    <button type="button" class="btn-ghost" id="reset-filter-btn">Xóa lọc</button>
+                    <button type="submit" class="btn-primary" style="min-width: 120px;">Lọc dữ liệu</button>
+                </div>
+            </form>
         </div>
 
         <!-- ================= TABLE ================= -->
@@ -300,7 +376,7 @@
 
     let currentPage = 0;
     const PAGE_SIZE = 20;
-    let lastPageResult = null; // giữ lại response phân trang gần nhất (để biết còn trang sau không)
+    let lastPageResult = null;
 
     async function loadConcertDropdown() {
         const select = document.getElementById('f-concert');
@@ -313,20 +389,14 @@
                 select.appendChild(opt);
             });
         } catch (err) {
-            // Không chặn cả trang nếu lỗi load dropdown — chỉ để trống, operator vẫn lọc được theo tiêu chí khác
             console.error('Không tải được danh sách concert:', err);
         }
     }
 
-    // NOTE: giả định có endpoint trả chi tiết concert kèm ticketCategories, dạng
-    // GET /api/concerts/{id} -> { ..., ticketCategories: [{id, name, ...}] }
-    // Nếu backend của bạn có endpoint khác (vd /api/ops/concerts/{id}), đổi lại URL bên dưới.
-    // Sự kiện khi người dùng chọn Concert -> Load các loại vé tương ứng
     document.getElementById('f-concert').addEventListener('change', async (e) => {
         const concertId = e.target.value;
         const categorySelect = document.getElementById('f-category');
 
-        // Reset dropdown loại vé
         categorySelect.innerHTML = '<option value="">-- Tất cả loại vé --</option>';
 
         if (!concertId) {
@@ -335,14 +405,12 @@
         }
 
         try {
-            // Gọi API mới thêm ở Backend
             const categories = await apiFetch(`/api/ticket-categories/concert/${concertId}`);
 
             if (Array.isArray(categories) && categories.length > 0) {
                 categories.forEach(tc => {
                     const opt = document.createElement('option');
                     opt.value = tc.id;
-                    // Hiển thị tên loại vé + giá vé (nếu DTO có chứa field price/unitPrice)
                     const priceText = tc.price ? ` - ${formatMoney(tc.price)}` : '';
                     opt.textContent = `${tc.name}${priceText}`;
                     categorySelect.appendChild(opt);
@@ -418,7 +486,6 @@
         }
 
         const rows = bookings.map(b => {
-            // Đường dẫn View cho Operator
             const detailViewUrl = `/ops/bookings/${b.bookingId}`;
 
             return `

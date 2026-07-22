@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Operator Dashboard - StageHub</title>
+    <title>Operator Dashboard - Voucher - StageHub</title>
     <!-- Giữ nguyên styles.css gốc -->
     <link rel="stylesheet" href="/css/styles.css">
     <!-- Thêm dashboard.css riêng -->
@@ -12,73 +12,79 @@
 <body>
 
 <div class="navbar header">
-    <!-- Đã xoá StageHub và Operator Dashboard ở giữa -->
     <div class="nav-actions" id="navbar-actions"></div>
 </div>
 
 <div class="container home-container">
     <h1>Operator dashboard</h1>
     <div class="ops-tabs" style="margin: 12px 0 18px;">
-        <a href="/ops/dashboard" class="btn-primary" style="margin-right:8px;">Concert</a>
+        <a href="/ops/dashboard" class="btn-ghost" style="margin-right:8px;">Concert</a>
         <a href="/ops/bookings" class="btn-ghost" style="margin-right:8px;">Booking</a>
-        <a href="/ops/vouchers" class="btn-ghost" style="margin-right:8px;">Voucher</a>
+        <a href="/ops/vouchers" class="btn-primary" style="margin-right:8px;">Voucher</a>
         <button class="btn-ghost" style="margin-right:8px;" onclick="location.href='/ops/ticket-categories/view'">
             Tra cứu Ticket Categories
         </button>
     </div>
-    <p style="color: var(--text-secondary); margin-top:6px;">Tạo concert mới và quản lý vòng đời trạng thái (DRAFT → PUBLISHED → COMPLETED, hoặc hủy).</p>
+    <p style="color: var(--text-secondary); margin-top:6px;">Tạo voucher campaign mới và theo dõi số lượt đã sử dụng, hoặc deactivate voucher đang chạy.</p>
 
     <div id="access-warning"></div>
 
     <div id="ops-content" style="display:none;">
         <div class="ops-layout">
 
-            <!-- Cột trái: Form tạo concert -->
+            <!-- Cột trái: Form tạo voucher -->
             <div class="panel">
-                <h2 style="margin-bottom:6px;">Tạo concert mới</h2>
+                <h2 style="margin-bottom:6px;">Tạo voucher mới</h2>
 
                 <div id="create-error-box"></div>
                 <div id="create-success-box"></div>
 
                 <form id="create-form">
                     <div class="field">
-                        <label for="c-name">Tên concert</label>
-                        <input type="text" id="c-name" required>
+                        <label for="v-code">Mã voucher</label>
+                        <input type="text" id="v-code" maxlength="50" placeholder="VD: SUMMER2026" required>
                     </div>
                     <div class="field">
-                        <label for="c-venue">Địa điểm</label>
-                        <input type="text" id="c-venue" required>
+                        <label for="v-discount-type">Loại giảm giá</label>
+                        <select id="v-discount-type">
+                            <option value="PERCENTAGE">PERCENTAGE</option>
+                            <option value="FIXED_AMOUNT">FIXED_AMOUNT</option>
+                        </select>
                     </div>
                     <div class="field">
-                        <label for="c-date">Ngày giờ diễn (eventDate)</label>
-                        <input type="datetime-local" id="c-date" required>
+                        <label for="v-discount-value">Giá trị giảm</label>
+                        <input type="number" id="v-discount-value" min="0.01" step="0.01" required>
                     </div>
                     <div class="field">
-                        <label for="c-desc">Mô tả (không bắt buộc)</label>
-                        <textarea id="c-desc" rows="3"></textarea>
+                        <label for="v-max-usage">Số lượt sử dụng tối đa</label>
+                        <input type="number" id="v-max-usage" min="1" step="1" required>
                     </div>
                     <div class="field">
-                        <label for="c-poster">Poster URL (không bắt buộc)</label>
-                        <input type="text" id="c-poster" placeholder="https://...">
+                        <label for="v-per-user-limit">Giới hạn lượt / user</label>
+                        <input type="number" id="v-per-user-limit" min="1" step="1" value="1" required>
+                    </div>
+                    <div class="field">
+                        <label for="v-valid-from">Hiệu lực từ</label>
+                        <input type="datetime-local" id="v-valid-from" required>
+                    </div>
+                    <div class="field">
+                        <label for="v-valid-to">Hiệu lực đến</label>
+                        <input type="datetime-local" id="v-valid-to" required>
                     </div>
 
-                    <label style="margin-bottom: 8px; display: block;">Hạng mục vé (ticketCategories)</label>
-                    <div id="ticket-rows"></div>
-                    <button type="button" class="btn-ghost" id="add-ticket-row" style="margin-bottom:20px; width: 100%;">+ Thêm hạng mục vé</button>
-
-                    <button type="submit" class="btn-primary" style="width:100%;" id="create-submit-btn">Tạo concert (DRAFT)</button>
+                    <button type="submit" class="btn-primary" style="width:100%;" id="create-submit-btn">Tạo voucher</button>
                 </form>
             </div>
 
-            <!-- Cột phải: Bảng quản lý status -->
+            <!-- Cột phải: Bảng quản lý voucher -->
             <div class="panel">
-                <h2 style="margin-bottom:6px;">Quản lý trạng thái concert</h2>
+                <h2 style="margin-bottom:6px;">Danh sách voucher</h2>
                 <p style="color: var(--text-secondary); font-size:13.5px; margin-bottom:16px;">
-                    <code>PATCH /api/ops/concerts/{id}/status</code> — Chỉ cho phép chuyển đúng vòng đời.
+                    <code>PATCH /api/ops/vouchers/{id}/deactivate</code> — Deactivate không thể hoàn tác (voucher sẽ ngưng áp dụng được cho booking mới).
                 </p>
                 <div id="status-error-box"></div>
-                <div id="concert-table-wrap">
-                    <div class="empty-state">Đang tải danh sách concert...</div>
+                <div id="voucher-table-wrap">
+                    <div class="empty-state">Đang tải danh sách voucher...</div>
                 </div>
             </div>
 
@@ -210,69 +216,13 @@
     document.addEventListener('DOMContentLoaded', () => renderNavbar());
 
     // =========================================================================
-    // PART 2: OPERATOR DASHBOARD LOGIC
+    // PART 2: VOUCHER DASHBOARD LOGIC
     // =========================================================================
 
-    const ALLOWED_TRANSITIONS = {
-        DRAFT: ['PUBLISHED', 'CANCELLED'],
-        PUBLISHED: ['CANCELLED', 'COMPLETED'],
-        CANCELLED: [],
-        COMPLETED: []
-    };
-
     const badgeClass = {
-        PUBLISHED: 'badge-published',
-        DRAFT: 'badge-draft',
-        CANCELLED: 'badge-cancelled',
-        COMPLETED: 'badge-completed'
+        true: 'badge-published',
+        false: 'badge-cancelled'
     };
-
-    let ticketRowCount = 0;
-
-    function addTicketRow(prefill) {
-        ticketRowCount++;
-        const rowId = `ticket-row-${ticketRowCount}`;
-        const wrap = document.getElementById('ticket-rows');
-        const div = document.createElement('div');
-        div.className = 'ticket-row';
-        div.id = rowId;
-        div.innerHTML = `
-        <div class="field">
-            <label>Tên hạng</label>
-            <input type="text" class="tc-name" placeholder="VIP..." value="${prefill?.name || ''}">
-        </div>
-        <div class="field">
-            <label>Giá (VND)</label>
-            <input type="number" class="tc-price" min="0" step="1000" value="${prefill?.price || ''}">
-        </div>
-        <div class="field">
-            <label>Số vé</label>
-            <input type="number" class="tc-qty" min="1" step="1" value="${prefill?.qty || ''}">
-        </div>
-        <button type="button" class="icon-btn" title="Xóa" onclick="document.getElementById('${rowId}').remove()">✕</button>
-    `;
-        wrap.appendChild(div);
-    }
-
-    document.getElementById('add-ticket-row').addEventListener('click', () => addTicketRow());
-
-    function collectTicketCategories() {
-        const rows = document.querySelectorAll('#ticket-rows .ticket-row');
-        const categories = [];
-        rows.forEach(row => {
-            const name = row.querySelector('.tc-name').value.trim();
-            const price = row.querySelector('.tc-price').value;
-            const qty = row.querySelector('.tc-qty').value;
-            if (name || price || qty) {
-                categories.push({
-                    name,
-                    price: price ? Number(price) : null,
-                    totalQuantity: qty ? Number(qty) : null
-                });
-            }
-        });
-        return categories;
-    }
 
     function checkAccess() {
         const warningBox = document.getElementById('access-warning');
@@ -298,29 +248,31 @@
         errorBox.innerHTML = '';
         successBox.innerHTML = '';
 
-        const eventDateRaw = document.getElementById('c-date').value;
+        const validFromRaw = document.getElementById('v-valid-from').value;
+        const validToRaw = document.getElementById('v-valid-to').value;
+
         const payload = {
-            name: document.getElementById('c-name').value.trim(),
-            venue: document.getElementById('c-venue').value.trim(),
-            eventDate: eventDateRaw ? `${eventDateRaw}:00` : null,
-            description: document.getElementById('c-desc').value.trim() || null,
-            posterUrl: document.getElementById('c-poster').value.trim() || null,
-            ticketCategories: collectTicketCategories()
+            code: document.getElementById('v-code').value.trim(),
+            discountType: document.getElementById('v-discount-type').value,
+            discountValue: Number(document.getElementById('v-discount-value').value),
+            maxUsage: Number(document.getElementById('v-max-usage').value),
+            perUserLimit: Number(document.getElementById('v-per-user-limit').value),
+            validFrom: validFromRaw ? `${validFromRaw}:00` : null,
+            validTo: validToRaw ? `${validToRaw}:00` : null
         };
 
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner"></span>';
 
         try {
-            const res = await apiFetch('/api/ops/concerts', {
+            const res = await apiFetch('/api/ops/vouchers', {
                 method: 'POST',
                 body: JSON.stringify(payload)
             });
-            successBox.innerHTML = `<div class="alert alert-success">Đã tạo concert #${res.concertId} thành công.</div>`;
+            successBox.innerHTML = `<div class="alert alert-success">Đã tạo voucher "${escapeHtml(res.code)}" thành công.</div>`;
             document.getElementById('create-form').reset();
-            document.getElementById('ticket-rows').innerHTML = '';
-            addTicketRow();
-            loadConcertTable();
+            document.getElementById('v-per-user-limit').value = 1;
+            loadVoucherTable();
         } catch (err) {
             let msg = err.message;
             if (err.body && err.body.fieldErrors) {
@@ -329,50 +281,47 @@
             errorBox.innerHTML = `<div class="alert alert-error">${escapeHtml(msg)}</div>`;
         } finally {
             submitBtn.disabled = false;
-            submitBtn.innerText = 'Tạo concert (DRAFT)';
+            submitBtn.innerText = 'Tạo voucher';
         }
     });
 
-    async function loadConcertTable() {
-        const wrap = document.getElementById('concert-table-wrap');
+    async function loadVoucherTable() {
+        const wrap = document.getElementById('voucher-table-wrap');
         try {
-            const concerts = await apiFetch('/api/ops/concerts');
-            renderConcertTable(concerts);
+            const data = await apiFetch('/api/ops/vouchers');
+            const vouchers = data.content ?? data;
+            renderVoucherTable(vouchers);
         } catch (err) {
             wrap.innerHTML = `<div class="empty-state">Không tải được danh sách: ${escapeHtml(err.message)}</div>`;
         }
     }
 
-    function renderConcertTable(concerts) {
-        const wrap = document.getElementById('concert-table-wrap');
+    function renderVoucherTable(vouchers) {
+        const wrap = document.getElementById('voucher-table-wrap');
 
-        if (!concerts || !concerts.length) {
-            wrap.innerHTML = '<div class="empty-state">Chưa có concert nào. Tạo concert đầu tiên ở bên trái.</div>';
+        if (!vouchers || !vouchers.length) {
+            wrap.innerHTML = '<div class="empty-state">Chưa có voucher nào. Tạo voucher đầu tiên ở bên trái.</div>';
             return;
         }
 
-        const rows = concerts.map(c => {
-            const nextStates = ALLOWED_TRANSITIONS[c.status] || [];
-            const options = nextStates.map(s => `<option value="${s}">${s}</option>`).join('');
-            const canTransition = nextStates.length > 0;
+        const rows = vouchers.map(v => {
+            const statusText = v.active ? 'ACTIVE' : 'INACTIVE';
 
             return `
             <tr>
                 <td>
-                    <a href="/concert/${c.id}">${escapeHtml(c.name)}</a><br>
-                    <span style="color: var(--text-secondary); font-size:12px;">#${c.id} · ${escapeHtml(c.venue)}</span>
+                    <code>${escapeHtml(v.code)}</code><br>
+                    <span style="color: var(--text-secondary); font-size:12px;">#${v.id} · ${escapeHtml(v.discountType)} · ${v.discountValue}</span>
                 </td>
-                <td><span class="badge ${badgeClass[c.status] || ''}">${escapeHtml(c.status)}</span></td>
-                <td>${formatDateTime(c.eventDate)}</td>
+                <td><span class="badge ${badgeClass[v.active]}">${statusText}</span></td>
+                <td>${v.usedCount} / ${v.maxUsage}</td>
+                <td style="font-size:12.5px; color: var(--text-secondary);">
+                    ${formatDateTime(v.validFrom)}<br>→ ${formatDateTime(v.validTo)}
+                </td>
                 <td>
-                    ${canTransition ? `
-                        <div style="display:flex; gap:8px;">
-                            <select class="status-select" data-concert-id="${c.id}">
-                                ${options}
-                            </select>
-                            <button class="btn-primary" style="padding:6px 12px; font-size:12px;" onclick="submitStatusChange(${c.id}, this)">Cập nhật</button>
-                        </div>
-                    ` : `<span style="color: var(--text-secondary); font-size:13px;">Không thể đổi</span>`}
+                    ${v.active ? `
+                        <button class="btn-primary" style="padding:6px 12px; font-size:12px; background: var(--danger, #dc2626);" onclick="submitDeactivate(${v.id}, this)">Deactivate</button>
+                    ` : `<span style="color: var(--text-secondary); font-size:13px;">—</span>`}
                 </td>
             </tr>
         `;
@@ -381,30 +330,28 @@
         wrap.innerHTML = `
         <table class="ops-table">
             <thead>
-                <tr><th>Concert</th><th>Trạng thái</th><th>Ngày diễn</th><th>Cập nhật</th></tr>
+                <tr><th>Voucher</th><th>Trạng thái</th><th>Đã dùng / Tối đa</th><th>Hiệu lực</th><th>Thao tác</th></tr>
             </thead>
             <tbody>${rows}</tbody>
         </table>
     `;
     }
 
-    async function submitStatusChange(concertId, buttonEl) {
+    async function submitDeactivate(voucherId, buttonEl) {
         const errorBox = document.getElementById('status-error-box');
         errorBox.innerHTML = '';
 
-        const select = document.querySelector(`select[data-concert-id="${concertId}"]`);
-        const newStatus = select.value;
+        if (!confirm('Deactivate voucher này? Voucher sẽ không thể áp dụng cho booking mới nữa.')) return;
 
         buttonEl.disabled = true;
         const originalText = buttonEl.innerText;
         buttonEl.innerHTML = '<span class="spinner"></span>';
 
         try {
-            await apiFetch(`/api/ops/concerts/${concertId}/status`, {
-                method: 'PATCH',
-                body: JSON.stringify({ status: newStatus })
+            await apiFetch(`/api/ops/vouchers/${voucherId}/deactivate`, {
+                method: 'PATCH'
             });
-            loadConcertTable();
+            loadVoucherTable();
         } catch (err) {
             errorBox.innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`;
             buttonEl.disabled = false;
@@ -413,8 +360,7 @@
     }
 
     if (checkAccess()) {
-        addTicketRow();
-        loadConcertTable();
+        loadVoucherTable();
     }
 </script>
 </body>

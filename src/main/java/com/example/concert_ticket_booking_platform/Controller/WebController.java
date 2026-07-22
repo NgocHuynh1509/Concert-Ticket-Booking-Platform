@@ -75,4 +75,11 @@ public class WebController {
         return "op-ticker"; // Trả về templates/ops-ticket-categories.html
     }
 
+    @GetMapping("/ops/vouchers")
+    public String opsVoucher() {
+        return "op-voucher"; // Trả về templates/ops-ticket-categories.html
+    }
+
+
+
 }
