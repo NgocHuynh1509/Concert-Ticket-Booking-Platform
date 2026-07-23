@@ -9,7 +9,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Đúng đặc tả GET /bookings/:id -> booking: {status, items, finalAmount, expiresAt} (+ mở rộng thêm cho UI). */
 @Getter
 @Builder
 @AllArgsConstructor

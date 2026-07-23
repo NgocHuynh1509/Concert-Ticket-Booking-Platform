@@ -13,12 +13,8 @@ import java.util.Optional;
 @Repository
 public interface VoucherRepo extends JpaRepository<Voucher, Long> {
 
-    // Tìm voucher theo Mã code (ví dụ: "SUMMER2026")
     Optional<Voucher> findByCode(String code);
-
-
     boolean existsByCode(String code);
-
     Page<Voucher> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
 

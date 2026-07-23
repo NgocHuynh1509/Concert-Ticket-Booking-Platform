@@ -14,11 +14,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
-/**
- * Superclass dùng chung: id + createdAt/updatedAt tự động (Spring Data JPA Auditing).
- * Đây là chỗ code-first thể hiện rõ nhất: mọi entity con chỉ cần extends, không cần
- * lặp lại cột audit ở mỗi bảng -> giảm sai sót khi generate schema từ entity.
- */
+
 @Getter
 @Setter
 @MappedSuperclass

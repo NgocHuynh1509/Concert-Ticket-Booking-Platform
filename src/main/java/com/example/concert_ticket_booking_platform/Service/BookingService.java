@@ -37,42 +37,28 @@ public class BookingService {
     private final BookingItemRepo bookingItemRepository;
     private final PaymentRepo paymentRepository;
 
-    // ---------------------------------------------------------------------
-    // Đặt vé trực tiếp (giữ nguyên hành vi cũ: reserve stock + tạo booking trong 1 bước)
-    // ---------------------------------------------------------------------
-
     @Transactional
     public BookingResponse createBooking(User currentUser, String idempotencyKey, CreateBookingRequest request) {
 
         String normalizedVoucherCode = normalizeVoucherCode(request.getVoucherCode());
 
-        // 1) Idempotency check trước — nếu key đã xử lý rồi thì trả về Booking đã tồn tại
         Optional<Booking> existingOpt = bookingRepository.findByIdempotencyKey(idempotencyKey);
         if (existingOpt.isPresent()) {
             return handleExistingIdempotencyKey(existingOpt.get(), request, normalizedVoucherCode);
         }
 
-        // 2) Trừ kho vé (optimistic lock + retry — nay dùng chung TicketStockService)
         TicketCategory ticketCategory = ticketStockService.reserveStock(
                 request.getTicketCategoryId(), request.getQuantity());
 
-        // 3) Từ đây trở đi, logic giống hệt confirmHold từ HoldService — dùng chung 1 method
         try {
             return buildBookingFromReservedStock(
                     currentUser, ticketCategory, request.getQuantity(),
                     idempotencyKey, normalizedVoucherCode);
         } catch (RuntimeException e) {
-            // Nếu bước tạo Booking/Voucher thất bại SAU KHI đã trừ kho ở bước 2,
-            // phải hoàn lại kho — nếu không vé sẽ bị "bốc hơi" khỏi hệ thống.
             ticketStockService.releaseStock(ticketCategory.getId(), request.getQuantity());
             throw e;
         }
     }
-
-    // ---------------------------------------------------------------------
-    // Dùng chung bởi createBooking() (đặt trực tiếp) và HoldService.confirmHold()
-    // (đặt từ 1 hold đã trừ kho từ trước — nên KHÔNG gọi reserveStock ở đây nữa)
-    // ---------------------------------------------------------------------
 
     @Transactional
     public BookingResponse buildBookingFromReservedStock(
@@ -138,8 +124,7 @@ public class BookingService {
         return mapToBookingResponse(savedBooking, List.of(savedItem), savedPayment, false);
     }
 
-    // Dùng bởi HoldService khi hold đã ở trạng thái CONFIRMED (retry) — trả về booking đã có sẵn
-    // theo đúng quyền sở hữu, không tạo lại / xử lý lại nghiệp vụ.
+
     public BookingResponse getBookingResponse(Long bookingId, User currentUser) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new IllegalStateException("Booking không tồn tại: " + bookingId));
@@ -153,9 +138,7 @@ public class BookingService {
         return mapToBookingResponse(booking, items, payment, true);
     }
 
-    // ---------------------------------------------------------------------
-    // Idempotency replay
-    // ---------------------------------------------------------------------
+
 
     private BookingResponse handleExistingIdempotencyKey(Booking existing, CreateBookingRequest request, String normalizedVoucherCode) {
         boolean samePayload = isSamePayload(existing, request, normalizedVoucherCode);
@@ -192,9 +175,7 @@ public class BookingService {
 
 
 
-    // ---------------------------------------------------------------------
-    // Mapper Helper
-    // ---------------------------------------------------------------------
+
 
     private BookingResponse mapToBookingResponse(Booking booking, List<BookingItem> items, Payment payment, boolean isReplay) {
         List<BookingItemResponse> itemDtos = items != null ? items.stream().map(item -> BookingItemResponse.builder()
@@ -232,10 +213,7 @@ public class BookingService {
                 .build();
     }
 
-    /**
-     * GET /bookings — danh sách booking của user hiện tại.
-     * statusFilter == null -> tab "Tất cả", không lọc.
-     */
+
     @Transactional(readOnly = true)
     public List<BookingSummaryResponse> getMyBookings(User currentUser, BookingStatus statusFilter) {
         List<Booking> bookings = (statusFilter == null)
@@ -245,10 +223,7 @@ public class BookingService {
         return bookings.stream().map(this::toSummary).toList();
     }
 
-    /**
-     * GET /bookings/:id — chi tiết 1 booking.
-     * 404 nếu booking không tồn tại, 403 nếu không phải chủ booking (theo đúng đặc tả API).
-     */
+
     @Transactional(readOnly = true)
     public BookingResponse getBookingDetail(User currentUser, Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)

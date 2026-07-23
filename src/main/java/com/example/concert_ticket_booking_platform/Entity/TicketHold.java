@@ -10,15 +10,6 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-/**
- * Đại diện cho 1 lượt "giữ chỗ" tạm — trừ kho vé ngay lập tức nhưng CHƯA tạo Booking/Payment.
- * User có `expiresAt` (thường ngắn hơn nhiều so với thời gian giữ chỗ của Booking, vì đây chỉ
- * là bước "khoá vé trong lúc user điền thông tin/chọn voucher/thanh toán") để confirm; nếu
- * không confirm kịp, HoldExpiryScheduler sẽ hoàn lại kho.
- *
- * NOTE (giả định BaseEntity đã có sẵn trong project của bạn, cung cấp id/createdAt/updatedAt).
- * Nếu bạn chưa có class này, chỉ cần thêm 3 field đó trực tiếp vào đây.
- */
 @Getter
 @Setter
 @Entity
@@ -51,8 +42,6 @@ public class TicketHold extends BaseEntity {
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
-    // Gán sau khi confirm thành công — cho phép confirm lại (retry) trả về đúng booking cũ
-    // thay vì tạo booking mới, mà không cần thêm idempotency key riêng cho bước confirm.
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "booking_id")
     private Booking booking;

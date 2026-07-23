@@ -19,20 +19,6 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * Payment tách khỏi Booking (Many-to-One thay vì 1-1 cứng) vì lý do rất thực tế:
- * user thanh toán thất bại lần 1 (thẻ bị từ chối) thì vẫn được thử lại lần 2 mà KHÔNG cần
- * tạo booking mới (booking vẫn giữ chỗ nhờ expiresAt còn hiệu lực) -> mỗi lần thử là 1 dòng
- * Payment riêng, dễ audit toàn bộ lịch sử giao dịch của 1 booking.
- *
- * ASSUMPTION: không tích hợp cổng thanh toán thật. API "confirm payment" trong scope test
- * sẽ nhận kết quả giả lập (mock gateway callback) để chuyển Payment.status và kéo theo
- * Booking.status tương ứng (SUCCESS -> Booking.PAID, FAILED -> Booking vẫn PENDING_PAYMENT
- * cho tới khi hết hạn hoặc thử lại thành công).
- *
- * transactionRef: mã tham chiếu phía cổng thanh toán (mock), dùng để đối soát & chống xử lý
- * callback trùng lặp (idempotent webhook) — cùng nguyên tắc idempotency key như ở Booking.
- */
 @Getter
 @Setter
 @Entity

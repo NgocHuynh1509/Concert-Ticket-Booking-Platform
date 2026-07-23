@@ -15,10 +15,6 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Tra JSON 401 nhat quan (thay vi trang login mac dinh cua Spring Security)
- * khi request khong co / sai JWT nhung dung endpoint yeu cau dang nhap.
- */
 @Component
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 

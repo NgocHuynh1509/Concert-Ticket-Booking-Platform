@@ -11,7 +11,5 @@ import java.util.Optional;
 public interface TicketHoldRepo extends JpaRepository<TicketHold, Long> {
 
     Optional<TicketHold> findByIdempotencyKey(String idempotencyKey);
-
-    // Dùng bởi HoldExpiryScheduler để quét các hold quá hạn.
     List<TicketHold> findByStatusAndExpiresAtBefore(HoldStatus status, LocalDateTime time);
 }

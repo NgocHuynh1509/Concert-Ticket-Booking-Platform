@@ -9,12 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
-/**
- * Tách riêng khỏi BookingService vì giờ có 2 nơi cần trừ kho (BookingService.createBooking
- * đặt trực tiếp, và HoldService.createHold giữ chỗ tạm) — và HoldService còn cần thêm thao tác
- * HOÀN kho (khi hold hết hạn/bị huỷ) mà trước đây BookingService chưa cần tới.
- * Giữ 1 nơi duy nhất quản lý optimistic-lock retry cho TicketCategory để tránh lệch logic.
- */
+
 @Service
 @RequiredArgsConstructor
 public class TicketStockService {
@@ -24,10 +19,7 @@ public class TicketStockService {
     private final TicketCategoryRepo ticketCategoryRepository;
     private final EntityManager entityManager;
 
-    /**
-     * Trừ kho vé — optimistic lock (@Version) + retry khi conflict.
-     * Giữ nguyên logic gốc từ BookingService.reserveStock().
-     */
+
     public TicketCategory reserveStock(Long ticketCategoryId, int quantity) {
         int attempt = 0;
         while (true) {
@@ -52,11 +44,6 @@ public class TicketStockService {
         }
     }
 
-    /**
-     * Hoàn lại kho vé — dùng khi TicketHold hết hạn hoặc bị huỷ trước khi confirm thành Booking.
-     * Chặn availableQuantity vượt quá totalQuantity để tránh lỗi cộng dồn sai (ví dụ hoàn 2 lần
-     * do bug ở tầng gọi).
-     */
     public void releaseStock(Long ticketCategoryId, int quantity) {
         int attempt = 0;
         while (true) {

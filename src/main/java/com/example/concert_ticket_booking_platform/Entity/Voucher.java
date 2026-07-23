@@ -17,17 +17,6 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * ASSUMPTION (đã nêu trong doc Scope): hệ thống KHÔNG cung cấp API create/update/delete
- * voucher từ Operation Dashboard trong scope test này — chỉ seed sẵn dữ liệu voucher và
- * đảm bảo customer áp dụng được khi tạo booking. Entity vẫn thiết kế đủ trường để mở rộng
- * CRUD sau này mà không cần đổi schema.
- *
- * - usedCount + @Version: cùng cơ chế optimistic lock như TicketCategory, để chống 2 request
- *   cùng dùng "lượt cuối cùng" của voucher.
- * - perUserLimit: giới hạn số lần 1 user được dùng voucher này (chống abuse), kiểm tra bằng
- *   cách đếm số bản ghi VoucherUsage của (voucher, user) ở tầng service.
- */
 @Getter
 @Setter
 @Entity

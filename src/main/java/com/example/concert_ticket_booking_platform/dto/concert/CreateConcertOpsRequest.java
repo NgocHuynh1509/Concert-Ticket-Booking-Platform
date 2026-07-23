@@ -13,13 +13,7 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Body cua POST /ops/concerts theo dung spec:
- * { name, venue, eventDate, ticketCategories: [{name, price, totalQuantity}] }
- *
- * description/concertMapUrl/posterUrl la optional, khong bat buoc trong spec nhung
- * duoc giu lai vi Concert entity co cot cho chung - de trong neu operator chua co.
- */
+
 @Getter
 @Setter
 @NoArgsConstructor

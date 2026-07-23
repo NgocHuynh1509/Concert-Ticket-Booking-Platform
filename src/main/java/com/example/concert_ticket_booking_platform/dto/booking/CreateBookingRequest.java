@@ -8,14 +8,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * Body của POST /api/bookings.
- * voucherCode là optional — không có @NotBlank, chỉ validate nếu người dùng có nhập
- * (xem BookingService: chuỗi rỗng/blank được coi như "không dùng voucher").
- *
- * Thiếu ticketCategoryId/quantity hoặc quantity <= 0 sẽ bị @Valid chặn ở Controller,
- * trả 400 tự động qua GlobalExceptionHandler (bind MethodArgumentNotValidException).
- */
 @Getter
 @Setter
 @NoArgsConstructor

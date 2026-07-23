@@ -22,7 +22,6 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
-    // POST /api/payments/{id}/confirm — mock xác nhận kết quả thanh toán (thay cho cổng thanh toán thật)
     @PostMapping("/{id}/confirm")
     public ResponseEntity<BookingResponse> confirmPayment(
             @AuthenticationPrincipal User currentUser,

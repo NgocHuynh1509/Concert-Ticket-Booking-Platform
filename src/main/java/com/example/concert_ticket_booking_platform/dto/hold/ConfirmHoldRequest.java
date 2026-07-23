@@ -13,6 +13,5 @@ import lombok.Setter;
 @Builder
 public class ConfirmHoldRequest {
 
-    // Optional — user có thể áp voucher ngay lúc confirm (không bắt buộc lúc tạo hold).
     private String voucherCode;
 }

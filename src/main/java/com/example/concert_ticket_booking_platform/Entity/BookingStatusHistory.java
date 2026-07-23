@@ -4,12 +4,7 @@ import com.example.concert_ticket_booking_platform.Entity.enums.BookingStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
-/**
- * Audit trail cho mỗi lần OPERATOR/ADMIN đổi trạng thái booking thủ công.
- * KHÔNG dùng cho các chuyển trạng thái tự động của hệ thống (vd: PENDING_PAYMENT -> PAID
- * do payment callback, hay -> EXPIRED do scheduled job) — chỉ ghi nhận hành vi có người can thiệp,
- * nên "reason" là bắt buộc để phục vụ đối soát / khiếu nại sau này.
- */
+
 @Getter
 @Setter
 @Entity

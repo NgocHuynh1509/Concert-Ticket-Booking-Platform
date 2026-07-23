@@ -9,9 +9,7 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-/**
- * Dung cho GET /concerts: id, name, venue, eventDate, status (dung theo dung mo ta API).
- */
+
 @Getter
 @Setter
 @NoArgsConstructor

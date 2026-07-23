@@ -17,13 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
-/**
- * ASSUMPTION: không tích hợp cổng thanh toán thật (VNPay/Momo/Stripe) trong bản này.
- * confirmPayment() đóng vai trò "webhook giả lập" — thay vì chờ callback từ gateway thật,
- * frontend (trang mock thanh toán) gọi trực tiếp endpoint này với kết quả SUCCESS/FAILED.
- * Khi tích hợp VNPay thật sau này, chỉ cần thay nguồn gọi (từ nút bấm -> callback VNPay ký số),
- * logic xử lý trạng thái bên dưới giữ nguyên.
- */
+
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
@@ -53,20 +47,17 @@ public class PaymentService {
                     "Booking không còn chờ thanh toán (trạng thái hiện tại: " + booking.getStatus() + ")");
         }
 
-        // SUCCESS là trạng thái cuối — không cho lật ngược lại FAILED sau khi đã thanh toán xong.
         if (payment.getStatus() == PaymentStatus.SUCCESS) {
             return bookingService.getBookingResponse(booking.getId(), currentUser);
         }
 
-        // Cho phép FAILED -> SUCCESS (mô phỏng user bấm "thất bại" rồi thử lại và "thành công"),
-        // vì bản này dùng chung 1 payment cho mỗi booking thay vì tạo payment mới mỗi lần retry.
+
         if (request.getResult() == PaymentStatus.SUCCESS) {
             payment.setStatus(PaymentStatus.SUCCESS);
             payment.setPaidAt(LocalDateTime.now());
             booking.setStatus(BookingStatus.PAID);
         } else {
             payment.setStatus(PaymentStatus.FAILED);
-            // Booking giữ nguyên PENDING_PAYMENT — user còn có thể thử lại trong lúc chưa hết hạn giữ chỗ.
         }
 
         paymentRepository.save(payment);

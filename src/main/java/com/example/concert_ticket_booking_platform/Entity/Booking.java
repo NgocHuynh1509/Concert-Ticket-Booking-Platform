@@ -25,23 +25,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Aggregate root của luồng đặt vé.
- *
- * - idempotencyKey (unique): client (web/app) tự sinh 1 key duy nhất cho mỗi lần bấm "Đặt vé"
- *   (ví dụ UUID lưu ở client trước khi gọi API) và gửi kèm request. Nếu request bị timeout và
- *   client tự động retry với CÙNG key, DB sẽ chặn insert trùng nhờ unique constraint, tầng
- *   service bắt lỗi này và trả về booking đã tạo trước đó thay vì tạo booking mới -> chống
- *   duplicate booking do retry, đúng vấn đề đề bài nêu.
- *
- * - expiresAt: thời điểm hết hạn giữ chỗ khi status = PENDING_PAYMENT. Một scheduled job
- *   (ngoài scope code chi tiết của test, chỉ cần nêu trong doc) sẽ quét các booking quá hạn,
- *   chuyển sang EXPIRED và hoàn lại availableQuantity cho TicketCategory.
- *
- * - totalAmount / discountAmount / finalAmount: lưu lại tại thời điểm đặt vé (snapshot),
- *   không tính lại từ giá hiện tại của TicketCategory/Voucher — giá vé hay % giảm giá có thể
- *   đổi sau này nhưng không được ảnh hưởng ngược tới booking đã tạo.
- */
+
 @Getter
 @Setter
 @Entity
@@ -86,8 +70,6 @@ public class Booking extends BaseEntity {
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BookingItem> items = new ArrayList<>();
 
-    // 1 booking có thể có NHIỀU lần thử thanh toán (payment FAILED rồi thử lại),
-    // nên đây không phải OneToOne cứng — xem giải thích ở Payment.java.
     @ToString.Exclude
     @Builder.Default
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)

@@ -7,10 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * Response chung cho ca POST /ops/concerts va PATCH /ops/concerts/:id/status,
- * dung dung shape spec yeu cau: { concertId, status }
- */
+
 @Getter
 @Setter
 @NoArgsConstructor

@@ -24,7 +24,6 @@ public class OperatorVoucherController {
 
     private final IVoucherService voucherService;
 
-    // GET /ops/vouchers?page=0&size=20
     @GetMapping
     public ResponseEntity<Page<VoucherResponse>> getVouchers(
             @RequestParam(defaultValue = "0") int page,
@@ -34,7 +33,6 @@ public class OperatorVoucherController {
         return ResponseEntity.ok(voucherService.getVouchers(pageable));
     }
 
-    // POST /ops/vouchers
     @PostMapping
     public ResponseEntity<VoucherResponse> createVoucher(
             @Valid @RequestBody VoucherCreateRequest request
@@ -43,7 +41,6 @@ public class OperatorVoucherController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // PATCH /ops/vouchers/{id}/deactivate
     @PatchMapping("/{id}/deactivate")
     public ResponseEntity<VoucherResponse> deactivateVoucher(@PathVariable Long id) {
         return ResponseEntity.ok(voucherService.deactivateVoucher(id));

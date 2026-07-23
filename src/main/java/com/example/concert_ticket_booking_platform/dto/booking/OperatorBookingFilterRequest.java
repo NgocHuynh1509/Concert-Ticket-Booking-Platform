@@ -16,10 +16,9 @@ public class OperatorBookingFilterRequest {
     private PaymentStatus paymentStatus;
     private LocalDateTime createdFrom;
     private LocalDateTime createdTo;
-    private String userEmail;      // tìm gần đúng theo email
-    private String idempotencyKey; // hữu ích khi debug 1 request cụ thể
+    private String userEmail;
+    private String idempotencyKey;
 
-    // pagination
     private int page = 0;
     private int size = 20;
 }

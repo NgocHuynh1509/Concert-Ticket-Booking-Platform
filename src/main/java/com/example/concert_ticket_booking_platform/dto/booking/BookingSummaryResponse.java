@@ -8,11 +8,6 @@ import lombok.Getter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * DTO dùng riêng cho GET /api/bookings (danh sách "Vé của tôi").
- * Nhẹ hơn BookingResponse — không kéo theo items/payment chi tiết vì trang danh sách
- * chỉ cần đủ info để render card, tránh N+1 query không cần thiết khi list nhiều booking.
- */
 @Getter
 @Builder
 @AllArgsConstructor

@@ -11,12 +11,7 @@ import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.function.Function;
 
-/**
- * Sinh va verify JWT. Token luu 2 claim quan trong cho phan quyen:
- * - subject: username
- * - "role": role cua user (de frontend/debug de doc, con Spring Security thuc su
- *   lay quyen tu UserDetails.getAuthorities() khi filter set SecurityContext).
- */
+
 @Service
 public class JwtService {
 

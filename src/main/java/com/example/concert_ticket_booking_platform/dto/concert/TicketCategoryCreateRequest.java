@@ -11,11 +11,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 
-/**
- * 1 dong trong body cua POST /ops/concerts: {name, price, totalQuantity}.
- * availableQuantity KHONG nhan tu client - luon khoi tao = totalQuantity o tang service,
- * tranh operator gui sai lech gay oversell/undersell ngay tu luc tao.
- */
+
 @Getter
 @Setter
 @NoArgsConstructor

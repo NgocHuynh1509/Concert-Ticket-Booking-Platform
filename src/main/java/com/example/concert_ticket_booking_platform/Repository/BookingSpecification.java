@@ -18,8 +18,6 @@ public class BookingSpecification {
     public static Specification<Booking> fromFilter(OperatorBookingFilterRequest filter) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-
-            // Tránh nhân bản dòng khi join 1-n (items, payments)
             query.distinct(true);
 
             Join<Booking, BookingItem> itemJoin = null;

@@ -15,12 +15,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/**
- * Doc header "Authorization: Bearer <token>", verify token, va set SecurityContext
- * de cac tang sau (Controller voi @PreAuthorize) biet request nay la ai / role gi.
- * Neu khong co token hoac token khong hop le -> khong set gi ca, request van di tiep
- * nhung se bi chan boi SecurityConfig neu endpoint yeu cau authenticated().
- */
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {

@@ -10,10 +10,9 @@ import java.util.TimeZone;
 
 @SpringBootApplication
 @EnableJpaAuditing
-@EnableScheduling   // <-- THÊM DÒNG NÀY, thiếu nó thì mọi @Scheduled trong app không chạy
+@EnableScheduling
 public class ConcertTicketBookingPlatformApplication {
 
-    // 💡 Thêm đoạn này để ép cả hệ thống dùng múi giờ Việt Nam (GMT+7)
     @PostConstruct
     public void init() {
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));

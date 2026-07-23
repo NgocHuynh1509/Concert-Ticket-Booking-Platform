@@ -23,10 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Nghiep vu dashboard cho OPERATOR/ADMIN: tao concert (kem ticket category) va
- * chuyen trang thai concert theo dung vong doi mo ta trong ConcertStatus.
- */
 @Service
 @RequiredArgsConstructor
 public class ConcertOpsService {
@@ -34,15 +30,7 @@ public class ConcertOpsService {
     private final ConcertRepo concertRepository;
     private final TicketCategoryRepo ticketCategoryRepos;
 
-    /**
-     * Ma tran chuyen trang thai hop le. Dung EnumMap/EnumSet thay vi if/else long
-     * de de doc va de mo rong sau nay (vd them trang thai moi chi can sua 1 cho).
-     *
-     * DRAFT      -> PUBLISHED, CANCELLED
-     * PUBLISHED  -> CANCELLED, COMPLETED
-     * CANCELLED  -> (terminal - khong chuyen di dau nua)
-     * COMPLETED  -> (terminal)
-     */
+
     private static final Map<ConcertStatus, Set<ConcertStatus>> ALLOWED_TRANSITIONS = new EnumMap<>(ConcertStatus.class);
 
     static {
@@ -52,10 +40,7 @@ public class ConcertOpsService {
         ALLOWED_TRANSITIONS.put(ConcertStatus.COMPLETED, EnumSet.noneOf(ConcertStatus.class));
     }
 
-    /**
-     * Dung rieng cho dashboard operator: tra ve TAT CA concert (moi status), khac voi
-     * ConcertService.listPublishedConcerts() chi tra PUBLISHED cho khach vang lai.
-     */
+
     @Transactional(readOnly = true)
     public List<ConcertSummaryResponse> listAllConcerts() {
         return concertRepository.findAll().stream()

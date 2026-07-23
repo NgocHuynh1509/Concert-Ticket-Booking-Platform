@@ -8,9 +8,7 @@ import lombok.Setter;
 
 import java.util.List;
 
-/**
- * Dung dung shape ma spec API yeu cau: { "concerts": Concert[] }
- */
+
 @Getter
 @Setter
 @NoArgsConstructor

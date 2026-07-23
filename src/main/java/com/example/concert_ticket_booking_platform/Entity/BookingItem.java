@@ -14,10 +14,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 
-/**
- * Chi tiết dòng vé trong 1 booking (1 booking có thể mua nhiều category, ví dụ 2 vé VIP + 1 Standard).
- * unitPrice là snapshot giá tại thời điểm đặt, giống lý do đã giải thích ở Booking.
- */
+
 @Getter
 @Setter
 @Entity

@@ -29,24 +29,16 @@ public class BookingController {
             @RequestHeader(value = "Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody CreateBookingRequest request) {
 
-        // 1. Kiểm tra Authentication
         if (currentUser == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        // 2. Gọi Service xử lý (Tất cả Exception đã được GlobalExceptionHandler quản lý)
         BookingResponse response = bookingService.createBooking(currentUser, idempotencyKey, request);
 
-        // 3. Nếu là Replay -> Trả về 200 OK, nếu Tạo mới -> Trả về 201 CREATED
         HttpStatus status = response.isReplay() ? HttpStatus.OK : HttpStatus.CREATED;
         return ResponseEntity.status(status).body(response);
     }
 
-    /**
-     * GET /api/bookings?status=PAID  — "Vé của tôi", có filter theo trạng thái.
-     * Không truyền status (hoặc status=ALL) -> trả toàn bộ booking của user hiện tại.
-     * Dùng cho trang my-bookings.html (4 tab: Tất cả / PENDING_PAYMENT / PAID / EXPIRED).
-     */
     @GetMapping
     public ResponseEntity<?> getMyBookings(
             @AuthenticationPrincipal User currentUser,

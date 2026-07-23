@@ -14,9 +14,6 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class ConfirmPaymentRequest {
-
-    // Chỉ chấp nhận SUCCESS hoặc FAILED — service sẽ validate thêm (PENDING/REFUNDED không hợp lệ ở đây).
-    // ASSUMPTION: không tích hợp cổng thật, đây là API mock để giả lập kết quả gateway trả về.
     @NotNull(message = "result không được để trống")
     private PaymentStatus result;
 }

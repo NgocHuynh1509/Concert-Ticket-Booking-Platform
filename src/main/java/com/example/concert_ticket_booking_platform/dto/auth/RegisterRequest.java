@@ -8,11 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * Dang ky luon chi tao duoc role CUSTOMER (xem AuthService).
- * OPERATOR/ADMIN chi duoc tao boi ADMIN qua kenh rieng, khong expose qua /auth/register cong khai
- * de tranh nguoi dung tu phong quyen cho minh.
- */
+
 @Getter
 @Setter
 @NoArgsConstructor

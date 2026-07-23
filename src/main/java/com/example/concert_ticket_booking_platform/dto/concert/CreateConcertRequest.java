@@ -10,11 +10,7 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-/**
- * Dung cho endpoint POST /api/concerts (chi OPERATOR/ADMIN duoc goi - xem SecurityConfig).
- * Khong nam trong spec /concerts GET duoc giao, nhung can de demo phan quyen dashboard
- * dung nhu comment trong Entity User/Concert.
- */
+
 @Getter
 @Setter
 @NoArgsConstructor

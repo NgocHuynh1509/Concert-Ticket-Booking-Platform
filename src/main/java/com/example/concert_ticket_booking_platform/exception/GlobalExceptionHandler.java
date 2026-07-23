@@ -15,10 +15,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Chuan hoa moi loi API ve cung 1 shape ApiErrorResponse, tranh viec moi controller
- * tu try/catch va tra ve JSON khac nhau -> frontend de xu ly hon.
- */
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 

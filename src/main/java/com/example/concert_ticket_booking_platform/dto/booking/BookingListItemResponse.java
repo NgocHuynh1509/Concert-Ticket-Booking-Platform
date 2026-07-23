@@ -8,11 +8,6 @@ import lombok.Getter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * 1 dòng trong GET /bookings — đủ để render card trong trang "Vé của tôi"
- * mà không cần gọi thêm request. Gộp sẵn tên concert đầu tiên trong booking
- * để FE khỏi phải join thủ công.
- */
 @Getter
 @Builder
 @AllArgsConstructor

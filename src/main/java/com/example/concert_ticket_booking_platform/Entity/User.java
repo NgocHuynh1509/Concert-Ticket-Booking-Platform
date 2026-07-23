@@ -20,13 +20,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.List;
 
-/**
- * User implements UserDetails de Spring Security dung truc tiep lam principal,
- * khong can tao them lop Adapter rieng.
- *
- * Phan quyen (authorization): role duoc map thanh GrantedAuthority dang "ROLE_<role>"
- * (vi du ROLE_CUSTOMER, ROLE_OPERATOR, ROLE_ADMIN) de dung voi @PreAuthorize("hasRole(...)").
- */
 @Getter
 @Setter
 @ToString

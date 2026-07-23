@@ -27,8 +27,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class HoldService {
 
-    // Ngắn hơn nhiều so với BOOKING_HOLD_MINUTES (15p) ở BookingService, vì đây chỉ là bước
-    // "khoá vé trong lúc user thao tác trên UI" trước khi thật sự tạo booking + payment.
+
     private static final int HOLD_MINUTES = 5;
 
     private final TicketHoldRepo ticketHoldRepository;
@@ -36,9 +35,7 @@ public class HoldService {
     private final BookingService bookingService;
     private final BookingRepo bookingRepository;
 
-    // -----------------------------------------------------------------
-    // 1) Tạo hold — trừ kho ngay, chưa tạo Booking
-    // -----------------------------------------------------------------
+
     @Transactional
     public HoldResponse createHold(User currentUser, String idempotencyKey, CreateHoldRequest request) {
 
@@ -63,8 +60,7 @@ public class HoldService {
         try {
             saved = ticketHoldRepository.save(hold);
         } catch (DataIntegrityViolationException e) {
-            // Race hiếm gặp: 2 request cùng Idempotency-Key tới gần như đồng thời.
-            // Request này "thua" nên phải hoàn lại phần kho vừa trừ ở trên trước khi trả về hold của người thắng.
+
             ticketStockService.releaseStock(ticketCategory.getId(), request.getQuantity());
             TicketHold winner = ticketHoldRepository.findByIdempotencyKey(idempotencyKey)
                     .orElseThrow(() -> e);
@@ -84,9 +80,7 @@ public class HoldService {
         return mapToResponse(existing, true);
     }
 
-    // -----------------------------------------------------------------
-    // 2) Confirm hold -> tạo Booking + Payment thật (dùng lại BookingService)
-    // -----------------------------------------------------------------
+
     @Transactional
     public BookingResponse confirmHold(User currentUser, Long holdId, ConfirmHoldRequest request) {
         TicketHold hold = ticketHoldRepository.findById(holdId)
@@ -96,8 +90,7 @@ public class HoldService {
             throw new HoldOwnershipException("Bạn không có quyền xác nhận lượt giữ chỗ này");
         }
 
-        // Idempotent: confirm nhiều lần trên 1 hold đã CONFIRMED -> trả về đúng booking cũ,
-        // không xử lý lại nghiệp vụ (không trừ kho/áp voucher thêm lần nữa).
+
         if (hold.getStatus() == HoldStatus.CONFIRMED) {
             return bookingService.getBookingResponse(hold.getBooking().getId(), currentUser);
         }
@@ -107,24 +100,21 @@ public class HoldService {
         }
 
         if (hold.getExpiresAt().isBefore(LocalDateTime.now())) {
-            // Hết hạn nhưng HoldExpiryScheduler chưa kịp quét — tự xử lý ngay tại đây
-            // để không confirm nhầm 1 hold đáng lẽ đã mất hiệu lực.
+
             ticketStockService.releaseStock(hold.getTicketCategory().getId(), hold.getQuantity());
             hold.setStatus(HoldStatus.EXPIRED);
             ticketHoldRepository.save(hold);
             throw new HoldExpiredException("Lượt giữ chỗ đã hết hạn");
         }
 
-        // idempotencyKey của Booking được sinh từ chính holdId — đảm bảo confirm là idempotent
-        // theo bản chất (unique theo hold), không cần client tự gửi thêm 1 key khác ở bước này.
+
         String bookingIdempotencyKey = "hold-" + hold.getId();
 
         BookingResponse response = bookingService.buildBookingFromReservedStock(
                 currentUser, hold.getTicketCategory(), hold.getQuantity(),
                 bookingIdempotencyKey, normalizeVoucherCode(request.getVoucherCode()));
 
-        // getReferenceById chỉ tạo 1 proxy trỏ tới id đã biết (response.getId()), không cần
-        // SELECT lại toàn bộ Booking — rẻ hơn nhiều so với bookingRepository.findById(...).
+
         hold.setStatus(HoldStatus.CONFIRMED);
         hold.setBooking(bookingRepository.getReferenceById(response.getId()));
         ticketHoldRepository.save(hold);
@@ -132,9 +122,6 @@ public class HoldService {
         return response;
     }
 
-    // -----------------------------------------------------------------
-    // 3) Huỷ hold thủ công (user đổi ý trước khi confirm)
-    // -----------------------------------------------------------------
     @Transactional
     public void releaseHold(User currentUser, Long holdId) {
         TicketHold hold = ticketHoldRepository.findById(holdId)
@@ -145,7 +132,7 @@ public class HoldService {
         }
 
         if (hold.getStatus() != HoldStatus.HELD) {
-            return; // đã CONFIRMED/EXPIRED/RELEASED từ trước — coi như thao tác idempotent, không lỗi
+            return;
         }
 
         ticketStockService.releaseStock(hold.getTicketCategory().getId(), hold.getQuantity());
@@ -153,9 +140,7 @@ public class HoldService {
         ticketHoldRepository.save(hold);
     }
 
-    // -----------------------------------------------------------------
-    // Helpers
-    // -----------------------------------------------------------------
+
 
     private String normalizeVoucherCode(String raw) {
         if (raw == null || raw.isBlank()) {

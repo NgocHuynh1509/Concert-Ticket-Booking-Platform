@@ -42,10 +42,6 @@ public class OperatorBookingService {
                 .map(this::toListItem);
     }
 
-    // Chỉ định nghĩa các bước chuyển HỢP LỆ do operator thao tác thủ công.
-    // Các chuyển trạng thái tự động (PENDING_PAYMENT -> PAID do payment callback,
-    // -> EXPIRED do scheduled job) không đi qua đường này.
-    // CANCELLED & EXPIRED là trạng thái cuối -> Không cho phép chuyển đổi tiếp
     private static final Map<BookingStatus, Set<BookingStatus>> ALLOWED_TRANSITIONS = Map.of(
             BookingStatus.PENDING_PAYMENT, Set.of(BookingStatus.PAID, BookingStatus.CANCELLED),
             BookingStatus.PAID, Set.of(BookingStatus.PENDING_PAYMENT, BookingStatus.CANCELLED),

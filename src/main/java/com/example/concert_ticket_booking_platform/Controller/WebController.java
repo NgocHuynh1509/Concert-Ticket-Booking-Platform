@@ -8,17 +8,17 @@ public class WebController {
 
     @GetMapping("/login")
     public String loginPage() {
-        return "login"; // returns templates/login.html
+        return "login";
     }
 
     @GetMapping("/register")
     public String registerPage() {
-        return "register"; // returns templates/register.html
+        return "register";
     }
 
     @GetMapping({"/", "/home"})
     public String homePage() {
-        return "home"; // returns templates/home.html
+        return "home";
     }
 
     @GetMapping("/concert/{id}")
@@ -28,19 +28,17 @@ public class WebController {
 
     @GetMapping("/checkout")
     public String checkoutPage() {
-        return "checkout"; // Trả về checkout.html
+        return "checkout";
     }
 
-    // MỚI: trang mock thanh toán (2 nút thành công/thất bại) — trước đó payment.html
-    // chưa có route nào trả về nên truy cập /payment sẽ bị 404.
     @GetMapping("/payment")
     public String paymentPage() {
-        return "payment"; // Trả về payment.html
+        return "payment";
     }
 
     @GetMapping("/booking-success")
     public String bookingSuccessPage() {
-        return "booking-success"; // Trả về booking-success.html
+        return "booking-success";
     }
 
     @GetMapping("/my-bookings")
@@ -60,24 +58,22 @@ public class WebController {
 
     @GetMapping("/ops/bookings")
     public String opsBookings() {
-        return "ops-bookings"; // Trả về ops-bookings.html
+        return "ops-bookings";
     }
 
     @GetMapping("/ops/bookings/{id}")
     public String opsBookingDetail() {
-        return "op-booking-detail"; // Trả về file templates/ops-booking-detail.html (file đã viết ở bước trước)
+        return "op-booking-detail";
     }
 
-    // MỚI: trang tra cứu/lọc ticket categories theo concert hoặc loại vé,
-    // gọi API GET /ops/ticket-categories (đã viết ở TicketCategoryController).
     @GetMapping("/ops/ticket-categories/view")
     public String opsTicketCategories() {
-        return "op-ticker"; // Trả về templates/ops-ticket-categories.html
+        return "op-ticker";
     }
 
     @GetMapping("/ops/vouchers")
     public String opsVoucher() {
-        return "op-voucher"; // Trả về templates/ops-ticket-categories.html
+        return "op-voucher";
     }
 
 

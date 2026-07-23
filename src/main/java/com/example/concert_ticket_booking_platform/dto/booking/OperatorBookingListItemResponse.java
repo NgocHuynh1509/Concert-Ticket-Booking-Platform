@@ -14,12 +14,12 @@ public class OperatorBookingListItemResponse {
     private Long bookingId;
     private BookingStatus status;
     private String userEmail;
-    private String userFullName;      // nếu User có field này
+    private String userFullName;
     private String concertName;
     private String ticketCategoryName;
     private int totalTicketCount;
     private BigDecimal finalAmount;
-    private PaymentStatus latestPaymentStatus; // lấy payment mới nhất, không phải toàn bộ
+    private PaymentStatus latestPaymentStatus;
     private LocalDateTime createdAt;
     private LocalDateTime expiresAt;
 }

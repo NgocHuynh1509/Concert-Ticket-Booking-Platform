@@ -115,13 +115,8 @@ public class GlobalExceptionHandler {
     // --- fallback: lỗi không lường trước -> 500 (Hiện chi tiết lỗi để Debug) ---
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception ex) {
-        // 1. In vết lỗi đỏ lè ra Console của IntelliJ/Eclipse để soi
         ex.printStackTrace();
-
-        // 2. Lấy nguyên nhân chi tiết
         String detailMessage = ex.getMessage() != null ? ex.getMessage() : ex.toString();
-
-        // 3. Trả về message chi tiết cho Client thay vì câu chung chung
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR",
                 "Lỗi Server: " + ex.getClass().getSimpleName() + " - " + detailMessage, null);
     }

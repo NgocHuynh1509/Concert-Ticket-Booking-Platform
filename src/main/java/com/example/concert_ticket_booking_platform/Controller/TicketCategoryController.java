@@ -22,7 +22,6 @@ public class TicketCategoryController {
         var ticketCategoryOpt = ticketCategoryRepo.findById(id);
 
         if (ticketCategoryOpt.isPresent()) {
-            // Map từ Entity sang DTO an toàn không lo dính vòng lặp JSON
             return ResponseEntity.ok(new TicketCategoryResponse(ticketCategoryOpt.get()));
         }
 
@@ -32,7 +31,6 @@ public class TicketCategoryController {
 
     @GetMapping("/concert/{concertId}")
     public ResponseEntity<List<TicketCategoryResponse>> getByConcertId(@PathVariable Long concertId) {
-        // Đảm bảo trong TicketCategoryRepo có phương thức findAllByConcertId(Long concertId)
         var categories = ticketCategoryRepo.findAllByConcertId(concertId)
                 .stream()
                 .map(TicketCategoryResponse::new)

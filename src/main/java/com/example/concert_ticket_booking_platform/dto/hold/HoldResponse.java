@@ -23,8 +23,7 @@ public class HoldResponse {
     private HoldStatus status;
     private LocalDateTime expiresAt;
     private LocalDateTime createdAt;
-    private Long bookingId; // null cho tới khi confirm
+    private Long bookingId;
 
-    // true nếu đây là kết quả trả về do trùng Idempotency-Key (không tạo hold mới)
     private boolean isReplay;
 }

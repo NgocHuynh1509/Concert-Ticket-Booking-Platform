@@ -11,12 +11,10 @@ import java.util.List;
 @Data
 @Builder
 public class OperatorBookingDetailResponse {
-    // User
     private Long userId;
     private String userEmail;
     private String userFullName;
 
-    // Booking
     private Long bookingId;
     private BookingStatus status;
     private String idempotencyKey;
@@ -27,10 +25,8 @@ public class OperatorBookingDetailResponse {
     private LocalDateTime createdAt;
     private LocalDateTime expiresAt;
 
-    // Items (kèm concert + category)
     private List<OperatorBookingItemDetail> items;
 
-    // Toàn bộ lịch sử payment, không chỉ 1 bản
     private List<PaymentResponse> payments;
     private List<BookingStatusHistoryResponse> statusHistory;
 }

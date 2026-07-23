@@ -15,7 +15,6 @@ import java.util.Optional;
 @Repository
 public interface VoucherUsageRepo extends JpaRepository<VoucherUsage, Long> {
     long countByVoucherAndUser(Voucher voucher, User user);
-    // EntityGraph để fetch sẵn User trong 1 query, tránh N+1 khi map sang DTO
     @EntityGraph(attributePaths = {"user"})
     List<VoucherUsage> findByVoucherIdOrderByCreatedAtDesc(Long voucherId);
 
